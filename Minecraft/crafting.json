@@ -1,0 +1,12 @@
+{
+	"OakPlank": {"recipe": [
+			["oak log",null,null],
+			[null,null,null],
+			[null,null,null]],
+			"amount": 4},
+	"OakSlab": {"recipe": [
+			["oak plank","oak plank","oak plank"],
+			["oak plank","oak plank","oak plank"],
+			[null,null,null]],
+			"amount": 6}
+}
