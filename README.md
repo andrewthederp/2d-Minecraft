@@ -7,3 +7,4 @@ I wasn't planning on making this open source so the code is very bad
   - fix slabs/stairs
   - add proper lighting
   - make it more efficent
+  - Add crafting tables and make leaves drop normal stuff
