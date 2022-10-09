@@ -569,3 +569,4 @@ class CobbleStone(BreakableBlock, pygame.sprite.Sprite):
 	def on_right_click(self, mouse_pos):
 		groups = [self.level.obstacles_sprites,self.level.visible_sprites]
 		return default_on_right_click(self, mouse_pos, groups)
+
