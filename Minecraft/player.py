@@ -402,10 +402,10 @@ class Player(pygame.sprite.Sprite):
 							self.rect.left = sp.rect.right
 							return 1
 					else:
-						sp.rect.y += 32
+						sp.rect.y += 33
 						group = pygame.sprite.GroupSingle(sp)
 						sprite = pygame.sprite.spritecollideany(self, group, pygame.sprite.collide_mask)
-						sp.rect.y -= 32
+						sp.rect.y -= 33
 
 						if sprite:
 							if self.direction.x > 0:
@@ -508,7 +508,7 @@ class Player(pygame.sprite.Sprite):
 				self.collision('vertical')
 				collide = False
 				for sprite in self.obstacles_sprites:
-					if sprite.rect.bottom == self.rect.top and self.rect.right > sprite.rect.left and self.rect.left < sprite.rect.right:
+					if sprite.rect.bottom in range(self.rect.top, self.rect.bottom) and self.rect.right > sprite.rect.left and self.rect.left < sprite.rect.right:
 						collide = True
 						break
 				if collide:
@@ -523,7 +523,7 @@ class Player(pygame.sprite.Sprite):
 			self.collision('vertical')
 			collide = False
 			for sprite in self.obstacles_sprites:
-				if sprite.rect.top == self.rect.bottom and self.rect.right > sprite.rect.left and self.rect.left < sprite.rect.right:
+				if sprite.rect.top in range(self.rect.top, self.rect.bottom+1) and self.rect.right > sprite.rect.left and self.rect.left < sprite.rect.right:
 					collide = True
 					break
 
