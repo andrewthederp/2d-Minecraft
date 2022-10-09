@@ -69,7 +69,8 @@ def get_item_image(name, convert_alpha=False):
 			return img.convert_alpha()
 		return img
 	else:
-		return pygame.Surface((32,32))
+		item_path = os.path.join(asset_path, 'items', 'texture_not_found_item.png')
+		return pygame.image.load(item_path)
 
 def get_block_image(name, convert_alpha=False):
 	item_path = os.path.join(asset_path, 'blocks', name + '.png')
@@ -79,7 +80,8 @@ def get_block_image(name, convert_alpha=False):
 			return img.convert_alpha()
 		return img
 	else:
-		return pygame.Surface((64,64))
+		item_path = os.path.join(asset_path, 'blocks', 'texture_not_found.png')
+		return pygame.image.load(item_path)
 
 def write_text(font, text, **kwargs):
 	transparency = kwargs.pop('transparency', 255)
