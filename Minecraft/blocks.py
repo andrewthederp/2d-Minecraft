@@ -419,12 +419,13 @@ class OakSlab(BreakableBlock, pygame.sprite.Sprite):
 		y, _y = divmod(mouse_pos[1], TILE_SIZE)
 		x, y = int(x), int(y)
 
-		if _y > 32:
-			is_on_bottom = True
-			original_image = get_block_image('down_oak_slab', convert_alpha=True)
-		else:
-			is_on_bottom = False
-			original_image = get_block_image('up_oak_slab', convert_alpha=True)
+		is_on_bottom = _y > 32
+		# if _y > 32:
+		# 	is_on_bottom = True
+		# 	original_image = get_block_image('down_oak_slab', convert_alpha=True)
+		# else:
+		# 	is_on_bottom = False
+		# 	original_image = get_block_image('up_oak_slab', convert_alpha=True)
 		try:
 			block = WORLD_MAP[y][x]
 			if not block:
@@ -439,9 +440,9 @@ class OakSlab(BreakableBlock, pygame.sprite.Sprite):
 				x_, y_ = x*TILE_SIZE, y*TILE_SIZE
 				groups = [self.level.obstacles_sprites,self.level.visible_sprites]
 				# groups = [self.level.obstacles_sprites,self.level.visible_sprites]
-				block = self.__class__((x_, y_), groups, level=self.level)
+				block = self.__class__((x_, y_+(32 if is_on_bottom else 0)), groups, level=self.level)
 				block.data['on_top'] = not is_on_bottom
-				change_block_image(block, original_image)
+				# change_block_image(block, original_image)
 				# for group in groups:
 				# 	group.add(self)
 
