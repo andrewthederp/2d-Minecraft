@@ -24,8 +24,7 @@ def on_init_blocks():
 	screen = pygame.display.get_surface()
 
 def change_block_image(self, original_image):
-	self.original_image  = original_image
-	self.image = self.original_image.copy()
+	self.image = original_image.copy()
 	self.mask = pygame.mask.from_surface(self.image)
 
 def default_on_right_click(self, mouse_pos, groups, class_=None):
@@ -570,3 +569,36 @@ class CobbleStone(BreakableBlock, pygame.sprite.Sprite):
 		groups = [self.level.obstacles_sprites,self.level.visible_sprites]
 		return default_on_right_click(self, mouse_pos, groups)
 
+class CraftingTable(BreakableBlock, pygame.sprite.Sprite):
+	name = 'crafting table'
+
+	slot_image = get_item_image('crafting_table')
+
+	hardness = 2
+	best_tool = 'axe'
+	min_harvest = None
+	data = {'type':'block'}
+
+	original_image = get_block_image('crafting_table', convert_alpha=True)
+
+	def __init__(self, pos, groups, *, level):
+
+		self.image = self.original_image.copy()
+		self.mask = pygame.mask.from_surface(self.image)
+		self.rect  = self.image.get_rect(topleft=pos)
+
+		self.level = level
+
+		super().__init__(groups)
+
+	def tick(self):
+		self.break_tick(self.on_break)
+
+	def on_break(self):
+		rect = self.slot_image.get_rect(center=self.rect.center)
+		self.level.drop(CraftingTable(rect.center, [], level=self.level), self.slot_image, rect)
+		return
+
+	def on_right_click(self, mouse_pos):
+		groups = [self.level.obstacles_sprites,self.level.visible_sprites]
+		return default_on_right_click(self, mouse_pos, groups)
