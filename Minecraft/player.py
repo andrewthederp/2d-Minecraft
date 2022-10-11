@@ -300,7 +300,7 @@ class Player(pygame.sprite.Sprite):
 
 				self.crafting_output = self.craft(self.crafting_inv)
 			if event.type == pygame.KEYDOWN:
-				if event.key == pygame.K_e:
+				if event.key in [pygame.K_e, pygame.K_ESCAPE]:
 					self.scene = 'game'
 					return
 				for num in range(1, 10):
@@ -409,11 +409,13 @@ class Player(pygame.sprite.Sprite):
 
 						if sprite:
 							if self.direction.x > 0:
+								print('b')
 								self.rect.right = sprite.rect.left
 								group.empty()
 								return 0
 
 							if self.direction.x < 0:
+								print('a')
 								self.rect.left = sprite.rect.right
 								group.empty()
 								return 1
@@ -522,10 +524,16 @@ class Player(pygame.sprite.Sprite):
 		else:
 			self.collision('vertical')
 			collide = False
+			self.rect.y += 1
 			for sprite in self.obstacles_sprites:
 				if sprite.rect.top in range(self.rect.top, self.rect.bottom+1) and self.rect.right > sprite.rect.left and self.rect.left < sprite.rect.right:
-					collide = True
-					break
+					group = pygame.sprite.GroupSingle(sprite)
+					sprite = pygame.sprite.spritecollideany(self, group, pygame.sprite.collide_mask)
+					if sprite:
+						collide = True
+						group.empty()
+						break
+			self.rect.y -= 1
 
 			if collide:
 				self.direction.y = 1
@@ -636,27 +644,31 @@ class PlayerDraw:
 
 	def draw(self):
 		self.draw_hotbar()
-		if self.player.scene == 'inventory':
-			self.draw_inventory()
-		elif self.player.scene == 'game':
-			offset = pygame.math.Vector2()
+		if isinstance(self.player.scene, str):
+			if self.player.scene == 'inventory':
+				self.draw_inventory()
+			elif self.player.scene == 'game':
+				offset = pygame.math.Vector2()
 
-			offset.x = self.player.rect.centerx - HALF_WIDTH
-			offset.y = self.player.rect.centery - HALF_HEIGHT
+				offset.x = self.player.rect.centerx - HALF_WIDTH
+				offset.y = self.player.rect.centery - HALF_HEIGHT
 
-			mouse_pos = pygame.mouse.get_pos()
-			mouse_pos += offset
+				mouse_pos = pygame.mouse.get_pos()
+				mouse_pos += offset
 
-			collide = False
-			for sprite in self.player.obstacles_sprites:
-				if sprite.rect.collidepoint(mouse_pos) and sprite.rect.colliderect(self.player.reach):
-					collide = True
-					rect = copy.deepcopy(sprite.rect)
-					rect.topleft -= offset
-					for point in sprite.mask.outline():
-						x, y = point
-						pygame.draw.circle(self.screen, (15,15,15), (x+rect.left,y+rect.top), 2)
-					break
+				collide = False
+				for sprite in self.player.obstacles_sprites:
+					if sprite.rect.collidepoint(mouse_pos) and sprite.rect.colliderect(self.player.reach):
+						collide = True
+						rect = copy.deepcopy(sprite.rect)
+						rect.topleft -= offset
+						for point in sprite.mask.outline():
+							x, y = point
+							pygame.draw.circle(self.screen, (15,15,15), (x+rect.left,y+rect.top), 2)
+						break
+		else:
+			if self.player.scene.name == 'crafting table':
+				self.draw_crafting_table()
 			# FIX THIS #
 
 			# slot = get_slot_player_holding(self.player)
@@ -755,7 +767,6 @@ class PlayerDraw:
 		self.screen.blit(self.inventory_img, inventory_rect)
 
 		mouse_pos = pygame.mouse.get_pos()
-		# print(mouse_pos)
 
 		# Hotbar
 		box = pygame.Rect((155, 405), (33, 33))
@@ -870,3 +881,6 @@ class PlayerDraw:
 			write_text(self.font_20, highlight.slot_name.title(), centery = mouse_pos[1]-3, left=mouse_pos[0]+16, surface=self.screen)
 
 		self.player.inventory_sprites = inventory_sprites
+
+	def draw_crafting_table(self):
+		...
