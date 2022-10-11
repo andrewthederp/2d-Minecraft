@@ -58,6 +58,8 @@ class Player(pygame.sprite.Sprite):
 
 
 	def input(self):
+		mouse_pos = get_mouse_pos(self)
+
 		for event in self.level.events:
 			if event.type == pygame.MOUSEWHEEL and self.scene == 'game':
 				self.holding_index += event.y*-1
@@ -70,6 +72,14 @@ class Player(pygame.sprite.Sprite):
 				if event.key == pygame.K_e:
 					self.scene = 'inventory'
 					self.direction.x = 0
+			if event.type == pygame.MOUSEBUTTONDOWN:
+				if event.button and not self.rect.collidepoint(mouse_pos):
+					success = get_slot_player_holding(self).on_right_click(mouse_pos) # this system will need to be changed in the future for things such as food and throwables
+					if not success:
+						block = get_block_at(x=mouse_pos[0], y=mouse_pos[1])
+						func = getattr(block, 'use', False)
+						if func:
+							func()
 
 
 		if self.scene == 'game':
@@ -94,18 +104,8 @@ class Player(pygame.sprite.Sprite):
 				if keys_pressed[key]:
 					self.holding_index = num
 
-			# Idk
-			offset = pygame.math.Vector2()
-
-			offset.x = self.rect.centerx - HALF_WIDTH
-			offset.y = self.rect.centery - HALF_HEIGHT
-
-			mouse_pos = pygame.mouse.get_pos()
-			mouse_pos += offset
-
+			# breaking blocks
 			pressed = pygame.mouse.get_pressed()
-			if pressed[2] and not self.rect.collidepoint(mouse_pos):
-				self.inventory[0][int(self.holding_index)-1].on_right_click(mouse_pos)
 
 			if self.pressing_block:
 				if not self.pressing_block.rect.collidepoint(mouse_pos):
@@ -114,11 +114,8 @@ class Player(pygame.sprite.Sprite):
 
 			for sprite in self.obstacles_sprites:
 				if sprite.rect.collidepoint(mouse_pos) and sprite.rect.colliderect(self.reach):
-					rect = copy.deepcopy(sprite.rect)
-					rect.topleft -= offset
 
-					x, y = int(mouse_pos[0]//TILE_SIZE), int(mouse_pos[1]//TILE_SIZE)
-					block = WORLD_MAP[y][x]
+					block = get_block_at(x=mouse_pos[0], y=mouse_pos[1])
 
 					if block:
 						if pressed[0] and block != self.pressing_block:
@@ -127,7 +124,7 @@ class Player(pygame.sprite.Sprite):
 						if not pressed[0] and self.pressing_block:
 							self.pressing_block.on_left_release()
 							self.pressing_block = None
-					if pressed[1] and self.inventory[0][self.holding_index].obj != block:
+					if pressed[1] and get_slot_player_holding(self).obj != block: # pick block
 						for x, y in self.find(block):
 							if x == 0:
 								self.holding_index = y+1
@@ -218,7 +215,6 @@ class Player(pygame.sprite.Sprite):
 
 				if self.holding:
 					t = time.time() - self.last_button_pressed
-					# print(t, t < .5)
 					if t < .3:
 						self.stopped_pressing = False
 						for slot in self.inventory_sprites:
@@ -382,9 +378,9 @@ class Player(pygame.sprite.Sprite):
 
 
 	def move(self, speed):
-		# for _ in range(self.speed):
-		self.rect.x += self.direction.x*self.speed
-		self.collision('horizontal')
+		for _ in range(self.speed):
+			self.rect.x += self.direction.x
+			self.collision('horizontal')
 		self.rect.y += self.direction.y
 		self.collision('vertical')
 		self.coor = [self.rect.x, self.rect.y]
@@ -409,13 +405,11 @@ class Player(pygame.sprite.Sprite):
 
 						if sprite:
 							if self.direction.x > 0:
-								print('b')
 								self.rect.right = sprite.rect.left
 								group.empty()
 								return 0
 
 							if self.direction.x < 0:
-								print('a')
 								self.rect.left = sprite.rect.right
 								group.empty()
 								return 1
@@ -635,7 +629,7 @@ class PlayerDraw:
 
 		self.font_20 = get_font(20)
 
-		path = os.path.join(asset_path, 'inventory.png')
+		path = os.path.join(asset_path, 'inventory_ui.png')
 		self.inventory_img = pygame.image.load(path).convert_alpha()
 
 		self.holding_slot = Slot(obj=None, player=self.player, level=self.player.level)
