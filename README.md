@@ -8,6 +8,7 @@ I wasn't planning on making this open source so the code is very bad.
   - Make it more efficent
   - Add crafting tables and make leaves drop normal stuff
   - Stairs change direction when being left clicked on
+  - Player gets teleported to the side of the stiars when trying to walk off
 
 ## Done
   - Fixed slabs/stairs
