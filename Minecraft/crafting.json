@@ -8,5 +8,10 @@
 			["oak plank","oak plank","oak plank"],
 			[null,null,null],
 			[null,null,null]],
-			"amount": 6}
+			"amount": 6},
+	"CraftingTable": {"recipe": [
+			["oak plank","oak plank",null],
+			["oak plank","oak plank",null],
+			[null,null,null]],
+			"amount": 1}
 }

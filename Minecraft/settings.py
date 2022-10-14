@@ -1,5 +1,5 @@
 # from blocks import *
-import os
+import os, copy
 
 TILE_SIZE = 64
 HEIGHT    = TILE_SIZE*9
@@ -57,6 +57,8 @@ WORLD_MAP = [
 [d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d],
 [d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d]
 ]
+
+WORLD_COPY = copy.deepcopy(WORLD_MAP)
 
 player_starting_coor = (1,0)
 

@@ -13,11 +13,6 @@ class Level:
 
 		self.screen = pygame.display.get_surface()
 
-		self.visible_sprites = CameraGroup(self)
-		self.obstacles_sprites = pygame.sprite.Group()
-		self.falling_sprites = pygame.sprite.Group()
-		self.dropped_entities = pygame.sprite.Group()
-
 		self.sky = Sky()
 
 		self.start_dt = int(time.time())
@@ -28,13 +23,25 @@ class Level:
 		self.tick()
 
 	def create_map(self):
+
+		self.visible_sprites = Camera(self)
+		self.obstacles_sprites = pygame.sprite.Group()
+		self.falling_sprites = pygame.sprite.Group()
+		self.dropped_entities = pygame.sprite.Group()
+
 		conversion_dict = {'d':blocks.Dirt, 'g':blocks.Grass, 's':blocks.Sand, 'w':blocks.OakLog, 'l':blocks.OakLeaves, 'S':blocks.Stone, 'c':blocks.CobbleStone}
 
 		x, y = player_starting_coor[0] * TILE_SIZE, player_starting_coor[1] * TILE_SIZE
-		self.player = Player((x, y), [self.visible_sprites], self.obstacles_sprites, level=self)
+		groups = {
+			'obstacles_sprites':self.obstacles_sprites,
+			'visible_sprites': self.visible_sprites,
+			'falling_sprites': self.falling_sprites,
+			'dropped_entities': self.dropped_entities
+		}
+		self.player = Player((x, y), [self.visible_sprites], groups, level=self)
 		self.player_draw = PlayerDraw(self.player)
 
-		for row_index, row in enumerate(WORLD_MAP):
+		for row_index, row in enumerate(WORLD_COPY):
 			for col_index, col in enumerate(row):
 				x = col_index * TILE_SIZE
 				y = row_index * TILE_SIZE
@@ -74,28 +81,30 @@ class Level:
 	def drop(self, obj, image, rect):
 		Entity(obj, image, rect, level=self, groups=[self.visible_sprites, self.dropped_entities])
 
-	def pickup(self):
-		for sprite in self.dropped_entities:
-			if self.player.pickup_range.colliderect(sprite.rect):
-				sprite.kill()
-				self.player.add_item(sprite.obj)
-
 	def run(self, events):
 		self.events = events
+		for event in events:
+			if event.type == pygame.KEYDOWN:
+				if event.key == pygame.K_r and event.mod == 4160:
+					self.create_map()
+					self.player.rect.x = player_starting_coor[0] * TILE_SIZE
+					self.player.rect.y = player_starting_coor[1] * TILE_SIZE
+					self.zoom = 1
+
 		dt = int(time.time()) - self.start_dt
 		if dt >= FULL_DAY:
 			self.start_dt = int(time.time())
 
-		keys_pressed = pygame.key.get_pressed()
-		if keys_pressed[pygame.K_EQUALS]:
-			self.zoom = min(self.zoom+.1, 2)
-		elif keys_pressed[pygame.K_MINUS]:
-			self.zoom = max(self.zoom-.1, .5)
+		# keys_pressed = pygame.key.get_pressed()
+		# if keys_pressed[pygame.K_EQUALS]:
+		# 	self.zoom = min(self.zoom+.1, 2)
+		# elif keys_pressed[pygame.K_MINUS]:
+		# 	self.zoom = max(self.zoom-.1, .5)
+
+		"""zooming isn't really worth it"""
 
 		self.visible_sprites.update()
-		self.pickup()
-
-		self.visible_sprites.custom_draw(self.player)
+		self.visible_sprites.custom_draw(surface=self.screen, width=WIDTH, height=HEIGHT, zoom=self.zoom, max_zoom=2, center=self.player.rect.center)
 		self.sky.display(dt)
 		self.player_draw.draw()
 		debug(self.zoom, x=WIDTH-50)
@@ -119,28 +128,34 @@ class Sky:
 		self.full_surf.fill(col)
 		self.display_surface.blit(self.full_surf, (0,0), special_flags=pygame.BLEND_RGBA_MULT)
 
-class CameraGroup(pygame.sprite.Group):
+class Camera(pygame.sprite.Group):
 	def __init__(self, level):
 		super().__init__()
 
-		self.display_surface = pygame.display.get_surface()
-
 		self.offset = pygame.math.Vector2()
 
-		self.level = level
 
-	def custom_draw(self, player):
-		zoom = self.level.zoom
+	def custom_draw(self, surface, *, width, height, zoom=1, max_zoom=1, **kwargs):
+		rect = pygame.Rect((0,0), (width * max_zoom-zoom, height * max_zoom-zoom))
+		for key, value in kwargs.items():
+			setattr(rect, key, value)
 
-		self.offset.x = player.rect.centerx - HALF_WIDTH
-		self.offset.y = player.rect.centery - HALF_HEIGHT
+		self.offset.x = (rect.centerx*zoom) - width * .5
+		self.offset.y = (rect.centery*zoom) - height * .5
 
-		visible_x_range = int(self.offset.x)//TILE_SIZE, ((int(self.offset.x)+WIDTH)//TILE_SIZE)+1
-		visible_y_range = int(self.offset.y)//TILE_SIZE, ((int(self.offset.y)+HEIGHT)//TILE_SIZE)+1
+		# visible_x_range = int(self.offset.x)//TILE_SIZE, ((int(self.offset.x)+WIDTH)//TILE_SIZE)+1
+		# visible_y_range = int(self.offset.y)//TILE_SIZE, ((int(self.offset.y)+HEIGHT)//TILE_SIZE)+1
 
 		for sprite in self.sprites():
 			pos_x = sprite.rect.x//TILE_SIZE
 			pos_y = sprite.rect.y//TILE_SIZE
-			if (visible_x_range[0] <= pos_x <= visible_x_range[1]) and (visible_y_range[0] <= pos_y <= visible_y_range[1]):
-				offset_pos = sprite.rect.topleft - self.offset
-				self.display_surface.blit(sprite.image, offset_pos)
+			if sprite.rect.colliderect(rect):
+				if zoom != 1:
+					x, y = sprite.rect.topleft
+					offset_pos =  (x * zoom, y * zoom) - self.offset
+					w, h = sprite.image.get_size()
+					image = pygame.transform.scale(sprite.image, (w*zoom, h*zoom))
+				else:
+					offset_pos =  sprite.rect.topleft - self.offset
+					image = sprite.image
+				surface.blit(image, offset_pos)

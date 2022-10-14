@@ -6,8 +6,11 @@ from slots import Slot
 from fonts import get_font
 
 class Player(pygame.sprite.Sprite):
-	def __init__(self, pos, groups, obstacles_sprites, *, level):
+	def __init__(self, pos, groups, sprite_groups, *, level):
 		super().__init__(groups)
+
+		for key, value in sprite_groups.items():
+			setattr(self, key, value)
 
 		# DRAWING
 		current_path = os.path.join(os.path.dirname(__file__), 'assets', 'player.png')
@@ -26,8 +29,6 @@ class Player(pygame.sprite.Sprite):
 		# MOVEMENT
 		self.direction = pygame.math.Vector2(0, 1)
 		self.speed = 7
-
-		self.obstacles_sprites = obstacles_sprites
 
 		self.jumping = False
 		self.falling = False
@@ -549,6 +550,13 @@ class Player(pygame.sprite.Sprite):
 			except ValueError:
 				pass
 
+	def pickup(self):
+		for sprite in self.dropped_entities:
+			if self.pickup_range.colliderect(sprite.rect):
+				sprite.kill()
+				self.add_item(sprite.obj)
+
+
 	def swap(self, xy1, xy2):
 		x, y = xy1
 		x_, y_ = xy2
@@ -618,6 +626,7 @@ class Player(pygame.sprite.Sprite):
 			self.input()
 		elif self.scene == 'inventory':
 			self.inventory_input()
+		self.pickup()
 		self.apply_gravity()
 		self.move(self.speed)
 
@@ -642,28 +651,37 @@ class PlayerDraw:
 			if self.player.scene == 'inventory':
 				self.draw_inventory()
 			elif self.player.scene == 'game':
-				offset = pygame.math.Vector2()
+				# highlighting
 
-				offset.x = self.player.rect.centerx - HALF_WIDTH
-				offset.y = self.player.rect.centery - HALF_HEIGHT
+				mouse_pos = get_mouse_pos(self.player)
 
-				mouse_pos = pygame.mouse.get_pos()
-				mouse_pos += offset
-
-				collide = False
+				outline_surf = pygame.Surface((TILE_SIZE, TILE_SIZE)).convert_alpha()
+				outline_surf.fill((0,0,0,0))
+				rect = None
 				for sprite in self.player.obstacles_sprites:
 					if sprite.rect.collidepoint(mouse_pos) and sprite.rect.colliderect(self.player.reach):
-						collide = True
+
 						rect = copy.deepcopy(sprite.rect)
-						rect.topleft -= offset
 						for point in sprite.mask.outline():
-							x, y = point
-							pygame.draw.circle(self.screen, (15,15,15), (x+rect.left,y+rect.top), 2)
+							pygame.draw.circle(outline_surf, (15,15,15), point, 2)
 						break
+
+				# remove the last highlight
+				for sprite in self.player.visible_sprites.sprites():
+					if getattr(sprite, 'appear', False):
+						self.player.visible_sprites.remove(sprite)
+						break
+
+				if rect:
+					sprite = pygame.sprite.Sprite()
+					sprite.appear = True
+					sprite.image = outline_surf
+					sprite.rect = rect
+					self.player.visible_sprites.add(sprite)
 		else:
 			if self.player.scene.name == 'crafting table':
 				self.draw_crafting_table()
-			# FIX THIS #
+			# FIX THIS # What's broken? #
 
 			# slot = get_slot_player_holding(self.player)
 			# if not collide and ('block' in slot.slot_data.get('type')):

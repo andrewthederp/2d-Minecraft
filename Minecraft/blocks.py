@@ -24,6 +24,7 @@ def on_init_blocks():
 	screen = pygame.display.get_surface()
 
 def change_block_image(self, original_image):
+	self.original_image = original_image
 	self.image = original_image.copy()
 	self.mask = pygame.mask.from_surface(self.image)
 
@@ -156,10 +157,10 @@ class Dirt(BreakableBlock, pygame.sprite.Sprite):
 	min_harvest = None
 	data = {'type':'block'}
 
-	original_image = get_block_image('dirt', convert_alpha=True)
 
 	def __init__(self, pos, groups, *, level):
 
+		self.original_image = get_block_image('dirt', convert_alpha=True)
 		self.image = self.original_image.copy()
 		self.mask = pygame.mask.from_surface(self.image)
 		self.rect  = self.image.get_rect(topleft=pos)
@@ -189,10 +190,10 @@ class Grass(BreakableBlock, pygame.sprite.Sprite):
 	min_harvest = None
 	data = {'type':'block'}
 
-	original_image = get_block_image('grass_block', convert_alpha=True)
 
 	def __init__(self, pos, groups, *, level):
 
+		self.original_image = get_block_image('grass_block', convert_alpha=True)
 		self.image = self.original_image.copy()
 		self.mask = pygame.mask.from_surface(self.image)
 		self.rect  = self.image.get_rect(topleft=pos)
@@ -224,10 +225,10 @@ class Sand(FallingBlock, BreakableBlock, pygame.sprite.Sprite):
 	min_harvest = None
 	data = {'type':'block'}
 
-	original_image = get_block_image('sand', convert_alpha=True)
 
 	def __init__(self, pos, groups, *, level):
 
+		self.original_image = get_block_image('sand', convert_alpha=True)
 		self.image = self.original_image.copy()
 		self.mask = pygame.mask.from_surface(self.image)
 		self.rect  = self.image.get_rect(topleft=pos)
@@ -256,10 +257,10 @@ class OakLog(BreakableBlock, pygame.sprite.Sprite):
 	best_tool = 'axe'
 	min_harvest = None
 	data = {'type':'block'}
-	original_image = get_block_image('oak_log', convert_alpha=True)
 
 
 	def __init__(self, pos, groups, *, level):
+		self.original_image = get_block_image('oak_log', convert_alpha=True)
 		self.image = self.original_image.copy()
 		self.mask = pygame.mask.from_surface(self.image)
 		self.rect  = self.image.get_rect(topleft=pos)
@@ -290,10 +291,10 @@ class OakPlank(BreakableBlock, pygame.sprite.Sprite):
 	min_harvest = None
 	data = {'type':'block', 'two slabs':False}
 
-	original_image = get_block_image('oak_plank', convert_alpha=True)
 
 	def __init__(self, pos, groups, *, level):
 
+		self.original_image = get_block_image('oak_plank', convert_alpha=True)
 		self.image = self.original_image.copy()
 		self.mask = pygame.mask.from_surface(self.image)
 		self.rect  = self.image.get_rect(topleft=pos)
@@ -331,10 +332,10 @@ class OakStairs(BreakableBlock, pygame.sprite.Sprite):
 	min_harvest = None
 	data = {'type':['block','stairs'], 'upside-down':False, 'looking-right':True}
 
-	original_image = get_block_image('oak_stairs', convert_alpha=True)
 
 	def __init__(self, pos, groups, *, level):
 
+		self.original_image = get_block_image('oak_stairs', convert_alpha=True)
 		self.image = self.original_image.copy()
 		self.mask = pygame.mask.from_surface(self.image)
 		self.rect  = self.image.get_rect(topleft=pos)
@@ -394,10 +395,10 @@ class OakSlab(BreakableBlock, pygame.sprite.Sprite):
 	min_harvest = None
 	data = {'type':['block', 'slab'], 'stair_like':True, 'on_top':False}
 
-	original_image = get_block_image('oak_slab', convert_alpha=True)
 
 	def __init__(self, pos, groups, *, level):
 
+		self.original_image = get_block_image('oak_slab', convert_alpha=True)
 		self.image = self.original_image.copy()
 		self.mask = pygame.mask.from_surface(self.image)
 		self.rect  = self.image.get_rect(topleft=pos)
@@ -421,13 +422,13 @@ class OakSlab(BreakableBlock, pygame.sprite.Sprite):
 		is_on_bottom = _y > 32
 		# if _y > 32:
 		# 	is_on_bottom = True
-		# 	original_image = get_block_image('down_oak_slab', convert_alpha=True)
 		# else:
 		# 	is_on_bottom = False
-		# 	original_image = get_block_image('up_oak_slab', convert_alpha=True)
 		try:
+			# 	original_image = get_block_image('down_oak_slab', convert_alpha=True)
 			block = WORLD_MAP[y][x]
 			if not block:
+			# 	original_image = get_block_image('up_oak_slab', convert_alpha=True)
 				can_build = False
 				for x_, y_ in self.level.get_neighbours(x, y):
 					if WORLD_MAP[y_][x_]:
@@ -478,10 +479,10 @@ class OakLeaves(BreakableBlock, pygame.sprite.Sprite):
 	min_harvest = None
 	data = {'type':'block'}
 
-	original_image = get_block_image('oak_leaves', convert_alpha=True)
 
 	def __init__(self, pos, groups, *, level):
 
+		self.original_image = get_block_image('oak_leaves', convert_alpha=True)
 		self.image = self.original_image.copy()
 		self.mask = pygame.mask.from_surface(self.image)
 		self.rect  = self.image.get_rect(topleft=pos)
@@ -513,10 +514,10 @@ class Stone(BreakableBlock, pygame.sprite.Sprite):
 	min_harvest = 'wood'
 	data = {'type':'block'}
 
-	original_image = get_block_image('stone', convert_alpha=True)
 
 	def __init__(self, pos, groups, *, level):
 
+		self.original_image = get_block_image('stone', convert_alpha=True)
 		self.image = self.original_image.copy()
 		self.mask = pygame.mask.from_surface(self.image)
 		self.rect  = self.image.get_rect(topleft=pos)
@@ -546,10 +547,10 @@ class CobbleStone(BreakableBlock, pygame.sprite.Sprite):
 	min_harvest = 'wood'
 	data = {'type':'block'}
 
-	original_image = get_block_image('cobblestone', convert_alpha=True)
 
 	def __init__(self, pos, groups, *, level):
 
+		self.original_image = get_block_image('cobblestone', convert_alpha=True)
 		self.image = self.original_image.copy()
 		self.mask = pygame.mask.from_surface(self.image)
 		self.rect  = self.image.get_rect(topleft=pos)
@@ -579,10 +580,10 @@ class CraftingTable(BreakableBlock, pygame.sprite.Sprite):
 	min_harvest = None
 	data = {'type':'block'}
 
-	original_image = get_block_image('crafting_table', convert_alpha=True)
 
 	def __init__(self, pos, groups, *, level):
 
+		self.original_image = get_block_image('crafting_table', convert_alpha=True)
 		self.image = self.original_image.copy()
 		self.mask = pygame.mask.from_surface(self.image)
 		self.rect  = self.image.get_rect(topleft=pos)
@@ -602,3 +603,6 @@ class CraftingTable(BreakableBlock, pygame.sprite.Sprite):
 	def on_right_click(self, mouse_pos):
 		groups = [self.level.obstacles_sprites,self.level.visible_sprites]
 		return default_on_right_click(self, mouse_pos, groups)
+
+	def use(self):
+		...

@@ -109,3 +109,18 @@ def write_text(font, text, **kwargs):
 		bottom_text_surf.set_alpha(transparency)
 
 		return top_text_surf, bottom_text_surf
+
+def get_mouse_pos(player):
+	offset = pygame.math.Vector2()
+
+	offset.x = (player.rect.centerx * player.level.zoom) - HALF_WIDTH
+	offset.y = (player.rect.centery * player.level.zoom) - HALF_HEIGHT
+
+	mouse_pos = pygame.mouse.get_pos()
+	mouse_pos += offset
+	return mouse_pos
+
+def get_block_at(*, x, y):
+	x = int(x//64)
+	y = int(y//64)
+	return WORLD_MAP[y][x]
