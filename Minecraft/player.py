@@ -35,6 +35,7 @@ class Player(pygame.sprite.Sprite):
 
 		# INV/ITEMS
 		self.inventory = [[Slot(level=self.level, player=self) for _ in range(9)] for _ in range(4)]
+		self.inventory[0][0] = Slot(level=self.level, player=self, obj=CraftingTable((0,0), [], level=self.level))
 		self.pressing_block = None
 
 		self.holding_index = 1
@@ -48,7 +49,6 @@ class Player(pygame.sprite.Sprite):
 			self.crafting_json = json.load(f)
 
 		self.crafting_inv = [[Slot(level=self.level, player=self) for _ in range(2)] for _ in range(2)]
-		self.crafting_table = [[Slot(level=self.level, player=self) for _ in range(3)] for _ in range(3)]
 
 		self.crafting_output = Slot(level=self.level, player=self)
 
@@ -74,7 +74,7 @@ class Player(pygame.sprite.Sprite):
 					self.scene = 'inventory'
 					self.direction.x = 0
 			if event.type == pygame.MOUSEBUTTONDOWN:
-				if event.button and not self.rect.collidepoint(mouse_pos):
+				if event.button and not self.rect.collidepoint(mouse_pos) and event.button == 3:
 					success = get_slot_player_holding(self).on_right_click(mouse_pos) # this system will need to be changed in the future for things such as food and throwables
 					if not success:
 						block = get_block_at(x=mouse_pos[0], y=mouse_pos[1])
@@ -370,6 +370,242 @@ class Player(pygame.sprite.Sprite):
 							self.selected.pop()
 
 
+	def crafting_table_input(self):
+		inv = self.scene.inventory
+		for event in self.level.events:
+			if event.type == pygame.MOUSEBUTTONUP:
+				if self.stopped_pressing:
+					for slot in self.inventory_sprites:
+						rect = slot.rect
+						spot = inv if slot.location == 'crafting box' else self.inventory
+						if self.holding and rect.collidepoint(event.pos):
+							if slot.obj is None:
+								x, y = slot.xy
+								if event.button == 1:
+									spot[x][y] = self.holding
+									slot.change_item(self.holding.obj)
+									self.holding = None
+								else:
+									slt = self.holding.copy()
+									slt.amount = 1
+									spot[x][y] = slt
+									slot.change_item(slt.obj)
+									self.holding.amount -= 1
+								self.selected = []
+							elif slot.obj.name == self.holding.obj.name:
+								if slot.amount < 64:
+									can_get = 64-slot.amount if event.button == 1 else 1
+									if can_get >= self.holding.amount:
+										slot.amount += self.holding.amount
+										self.holding = None
+										self.selected = []
+									else:
+										slot.amount += can_get
+										self.holding.amount -= can_get
+							else:
+								x, y = slot.xy
+								old_slot = slot.copy()
+								spot[x][y] = self.holding
+								slot.change_item(self.holding.obj)
+								self.holding = old_slot
+					self.crafting_output = self.craft(inv)
+				else:
+					if self.selected:
+						self.selected = []
+						if not self.holding.display_amount:
+							self.holding = None
+						else:
+							self.holding.amount = self.holding.display_amount
+					self.stopped_pressing = True
+			if event.type == pygame.MOUSEBUTTONDOWN:
+
+				if self.crafting_output.obj:
+					rect = self.crafting_output.rect
+					if self.holding:
+						if self.holding.slot_name == self.crafting_output.slot_name and rect.collidepoint(event.pos):
+							self.holding.amount += self.crafting_output.amount
+							self.crafting_output = Slot(obj=None, level=self.level, player=self) 
+
+							if (self.holding.amount + self.crafting_output.amount) <= 64:
+								for row in inv:
+									for slot in row:
+										if slot.obj:
+											if slot.amount == 1:
+												x, y = slot.xy
+												inv[x][y] = Slot(obj=None, level=self.level, player=self)
+											else:
+												slot.amount -= 1
+					else:
+						if rect.collidepoint(event.pos):
+							self.holding = self.crafting_output.copy()
+							self.crafting_output = Slot(obj=None, level=self.level, player=self) 
+
+
+							for row in inv:
+								for slot in row:
+									if slot.obj:
+										if slot.amount == 1:
+											x, y = slot.xy
+											inv[x][y] = Slot(obj=None, level=self.level, player=self)
+										else:
+											slot.amount -= 1
+							return
+
+				if self.holding:
+					t = time.time() - self.last_button_pressed
+					if t < .3:
+						self.stopped_pressing = False
+						for slot in self.inventory_sprites:
+							if slot.slot_name == self.holding.slot_name:
+								if (self.holding.amount + slot.amount) <= 64:
+									self.holding.amount += slot.amount
+									slot.change_item(None)
+								else:
+									can_get = 64-self.holding.amount
+									self.holding.amount += can_get
+									slot.amount -= can_get
+						return
+
+				self.last_button_pressed = time.time()
+				"""
+				CHECK IF LEFT SHIFT CLICK ON CRAFTING OUTPUT
+				"""
+				for slot in self.inventory_sprites:
+					rect = slot.rect
+					spot = inv if slot.location == 'crafting box' else self.inventory
+					if rect.collidepoint(event.pos):
+						if not self.holding:
+							keys_pressed = pygame.key.get_pressed()
+							if keys_pressed[pygame.K_LSHIFT]:
+								x, y = slot.xy
+								slot = spot[x][y]
+								check = x == 0
+								is_satisfied = False
+								tries = 0
+								while (not is_satisfied) and (tries < 50):
+									tries += 1
+									try:
+										for x_, y_ in sorted(self.find(slot.obj), key = lambda i: i[0]):
+											if slot.location == 'crafting box' or check == (x_ != 0):
+												slt = self.inventory[x_][y_]
+												if slt.amount < 64:
+													can_get = 64-slt.amount
+													if can_get >= slot.amount:
+														slt.amount += slot.amount
+														slot.change_item(None)
+														is_satisfied = True
+														break
+													else:
+														slt.amount += can_get
+														slot.amount -= can_get
+														continue
+										if not is_satisfied:
+											raise ValueError
+									except ValueError:
+										try:
+											if not is_satisfied:
+												for x_, y_ in sorted(self.find(), key = lambda i: i[0]):
+													if slot.location == 'crafting box':
+														slt = self.inventory[x_][y_]
+														self.inventory[x_][y_] = slot
+														inv[x][y] = slt
+														is_satisfied = True
+														break
+													elif check == (x_ != 0):
+														self.swap((x,y), (x_, y_))
+														is_satisfied = True
+														break
+										except ValueError:
+											pass
+							elif slot.amount > 0:
+								if event.button == 1 or slot.amount <= 1:
+									self.stopped_pressing = False
+									self.holding = slot
+									self.inventory_sprites.remove(slot)
+									x, y = slot.xy
+									spot[x][y] = Slot(level=self.level, player=self)
+								elif event.button == 3:
+									self.stopped_pressing = False
+									s = slot.copy()
+									amt = (slot.amount // 2) + 1 if slot.amount % 2 else slot.amount // 2
+									s.amount = amt
+									slot.amount -= amt
+									self.holding = s
+
+				self.crafting_output = self.craft(inv)
+			if event.type == pygame.KEYDOWN:
+				if event.key in [pygame.K_e, pygame.K_ESCAPE]:
+					self.scene = 'game'
+					return
+				for num in range(1, 10):
+					key = getattr(pygame, f"K_{num}")
+					if event.key == key:
+						mouse_pos = pygame.mouse.get_pos()
+
+						for slot in self.inventory_sprites:
+							rect = slot.rect
+							if rect.collidepoint(mouse_pos):
+								num -= 1
+								x,y = slot.xy
+								self.swap((x,y), (0,num))
+						if self.crafting_output.rect.collidepoint(mouse_pos):
+							num -= 1
+							if not self.inventory[0][num].obj:
+								self.inventory[0][num] = self.crafting_output.copy()
+
+								for row in inv:
+									for slot in row:
+										if slot.obj:
+											if slot.amount == 1:
+												x, y = slot.xy
+												inv[x][y] = Slot(obj=None, level=self.level, player=self)
+											else:
+												slot.amount -= 1
+				self.crafting_output = self.craft(inv)
+
+
+		pressed = pygame.mouse.get_pressed()
+		if (self.stopped_pressing or len(self.selected) > 1) and (pressed[0] or pressed[2]) and self.holding:
+			pos = pygame.mouse.get_pos()
+			self.crafting_output = self.craft(inv)
+			for slot in self.inventory_sprites:
+				rect = slot.rect
+				if slot.obj:
+					continue
+
+				continue_ = False
+				for dct in self.selected:
+					if slot.xy == dct['xy'] and slot.location == dct['location']:
+						continue_ = True
+						break
+				if continue_:
+					continue
+				if rect.collidepoint(pos):
+					self.selected.append({'xy':slot.xy, 'location':slot.location})
+					length = len(self.selected)
+					if length >= 2:
+						self.stopped_pressing = False
+						if pressed[0]:
+							num, remainder = divmod(self.holding.amount, length)
+						else:
+							num = 1 if length <= self.holding.amount else 0
+							remainder = self.holding.amount-length
+						if num >= 1:
+							self.holding.display_amount = remainder
+							for dct in self.selected:
+								xy, location = dct.values()
+								spot = inv if location == 'crafting box' else self.inventory
+								x,y=xy
+								slt = spot[x][y]
+								if not slt.obj:
+									slot_copy = self.holding.copy()
+									slot_copy.amount = num
+									spot[x][y] = slot_copy
+								else:
+									slt.amount = num
+						else:
+							self.selected.pop()
+
 
 		# if self.holding and pygame.mouse.get_pressed()[0]:
 		# 	pos = pygame.mouse.get_pos()
@@ -622,10 +858,14 @@ class Player(pygame.sprite.Sprite):
 
 	def update(self):
 		self.update_rects()
-		if self.scene == 'game':
-			self.input()
-		elif self.scene == 'inventory':
-			self.inventory_input()
+		if isinstance(self.scene, str):
+			if self.scene == 'game':
+				self.input()
+			elif self.scene == 'inventory':
+				self.inventory_input()
+		else:
+			if self.scene.name == 'crafting table':
+				self.crafting_table_input()
 		self.pickup()
 		self.apply_gravity()
 		self.move(self.speed)
@@ -640,6 +880,9 @@ class PlayerDraw:
 
 		path = os.path.join(asset_path, 'inventory_ui.png')
 		self.inventory_img = pygame.image.load(path).convert_alpha()
+
+		path = os.path.join(asset_path, 'crafting_table_ui.png')
+		self.crafting_table_img = pygame.image.load(path).convert_alpha()
 
 		self.holding_slot = Slot(obj=None, player=self.player, level=self.player.level)
 		self.hotbar_text = ''
@@ -829,10 +1072,10 @@ class PlayerDraw:
 
 					highlight = slot
 
-		for row in [0,1]:
+		for row in (0,1):
 			box = pygame.Rect((336, 158+(36*row)), (33, 33))
 
-			for num in [0,1]:
+			for num in (0,1):
 				box.x += 36
 
 				slot = self.player.crafting_inv[row][num]
@@ -895,4 +1138,134 @@ class PlayerDraw:
 		self.player.inventory_sprites = inventory_sprites
 
 	def draw_crafting_table(self):
-		...
+		highlight = None
+		inventory_sprites = []
+
+		full_screen = pygame.Rect((0,0), (WIDTH, HEIGHT))
+		self.draw_transparent(full_screen, (0,0,0,128))
+
+		width = 398
+		height = 198
+
+		inventory_rect = self.crafting_table_img.get_rect(center = (WIDTH*.5, HEIGHT*.5))
+		self.screen.blit(self.crafting_table_img, inventory_rect)
+
+		mouse_pos = pygame.mouse.get_pos()
+		# print(mouse_pos)
+
+		# Hotbar
+		box = pygame.Rect((159, 406), (34, 33))
+		for num in range(9):
+			box.x += 36
+			slot = self.player.inventory[0][num]
+			img = slot.image
+			img_rect = img.get_rect(centerx=box.centerx-3, centery=box.centery)
+			slot.change_coor(0, num)
+			slot.change_rect(img_rect)
+			slot.change_location('hotbar')
+			inventory_sprites.append(slot)
+
+			self.screen.blit(img, img_rect)
+
+			if slot.amount > 1:
+				write_text(self.font_20, slot.amount, centery=box.centery+3, centerx=box.centerx+3, surface=self.screen)
+
+			if (len(self.player.selected) > 1 and slot.xy in self.player.selected):
+				self.draw_transparent(box, (255,255,255,128))
+			elif img_rect.collidepoint(mouse_pos):
+				highlight = slot
+				self.draw_transparent(box, (255,255,255,128))
+
+		# Rest of the inventory
+		for row in range(1, 4):
+			box = pygame.Rect((155, 254), (34, 33))
+			box.y = 254+(36*row)
+
+			for num in range(9):
+				box.x += 36
+				slot = self.player.inventory[row][num]
+				img = slot.image
+				img_rect = img.get_rect(centerx=box.centerx+1, centery=box.centery)
+				slot.change_coor(row, num)
+				slot.change_rect(img_rect)
+				slot.change_location('inventory')
+				inventory_sprites.append(slot)
+				self.screen.blit(img, img_rect)
+
+				if slot.amount > 1:
+					write_text(self.font_20, slot.amount, centery=box.centery+3, centerx=box.centerx+3, surface=self.screen)
+
+				if (len(self.player.selected) > 1 and slot.xy in self.player.selected):
+					self.draw_transparent(box, (255,255,255,128))
+				elif img_rect.collidepoint(mouse_pos):
+					self.draw_transparent(box, (255,255,255,128))
+
+					highlight = slot
+
+
+		# Crafting info
+		for row in (0,1,2):
+			box = pygame.Rect((202, 157+(36*row)), (33, 33))
+
+			for num in (0,1,2):
+				box.x += 36
+
+				slot = self.player.scene.inventory[row][num]
+				img = slot.image
+				img_rect = img.get_rect(center=box.center)
+				slot.change_coor(row, num)
+				slot.change_rect(img_rect)
+				slot.change_location('crafting box')
+				inventory_sprites.append(slot)
+				self.screen.blit(img, img_rect)
+
+				if slot.display_amount > 1:
+					write_text(self.font_20, slot.display_amount, centery=img_rect.centery+3, centerx=img_rect.centerx+3, surface=self.screen)
+
+				if (len(self.player.selected) > 1 and slot.xy in self.player.selected):
+					self.draw_transparent(box, (255,255,255,128))
+				elif img_rect.collidepoint(mouse_pos):
+					self.draw_transparent(box, (255,255,255,128))
+
+					highlight = slot
+
+
+
+
+		# CRAFTING OUTPUT
+
+		box = pygame.Rect((0, 0), (33, 33))
+		box.center = (440, 209)
+		slot = self.player.crafting_output
+		img = slot.image
+		img_rect = img.get_rect(center=box.center)
+		slot.change_rect(box)
+		if img_rect.collidepoint(mouse_pos):
+			self.draw_transparent(box, (255,255,255,128))
+			highlight = slot
+		self.screen.blit(img, img_rect)
+
+		if slot.amount > 1:
+			write_text(self.font_20, slot.amount, centery=box.centery+3, centerx=box.centerx+3, surface=self.screen)
+
+		# Holding
+		if self.player.holding and self.player.holding.display_amount > 0:
+			slot = self.player.holding
+			img = slot.image
+			img_rect = img.get_rect(center=mouse_pos)
+			self.screen.blit(img, img_rect)
+
+			if slot.display_amount > 1:
+				write_text(self.font_20, slot.display_amount, centery=img_rect.centery+3, centerx=img_rect.centerx+3, surface=self.screen)
+
+		if highlight and highlight.slot_name:
+			w, h = self.font_20.size(highlight.slot_name.title())
+			rect = pygame.Rect(0, 0, w+6, h+6)
+			rect.centery = mouse_pos[1] - 2
+			rect.left    = mouse_pos[0] + 11
+			self.draw_transparent(rect, (48,25,52, 200), border_radius=3)
+			pygame.draw.rect(self.screen, (75,0,130), rect, 2, border_radius=3)
+
+			write_text(self.font_20, highlight.slot_name.title(), centery = mouse_pos[1]-3, left=mouse_pos[0]+16, surface=self.screen)
+
+		self.player.inventory_sprites = inventory_sprites

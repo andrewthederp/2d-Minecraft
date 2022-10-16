@@ -2,6 +2,7 @@ import pygame, os, copy
 import time
 from settings import *
 from misc import *
+from slots import Slot
 
 pygame.init()
 
@@ -496,8 +497,6 @@ class OakLeaves(BreakableBlock, pygame.sprite.Sprite):
 
 	def on_break(self):
 		# Drop random shit
-		rect = self.slot_image.get_rect(center=self.rect.center)
-		self.level.drop(OakStairs(rect.center, [], level=self.level), self.slot_image, rect)
 		return
 
 	def on_right_click(self, mouse_pos):
@@ -590,6 +589,8 @@ class CraftingTable(BreakableBlock, pygame.sprite.Sprite):
 
 		self.level = level
 
+		self.inventory = [[Slot(level=self.level, player=self) for _ in range(3)] for _ in range(3)]
+
 		super().__init__(groups)
 
 	def tick(self):
@@ -605,4 +606,6 @@ class CraftingTable(BreakableBlock, pygame.sprite.Sprite):
 		return default_on_right_click(self, mouse_pos, groups)
 
 	def use(self):
-		...
+		player = self.level.player
+		player.scene = self
+		player.direction.x = 0
