@@ -59,9 +59,11 @@ class Player(pygame.sprite.Sprite):
 
 
 	def input(self):
+		# getting the mouse position relative to the player position
 		mouse_pos = get_mouse_pos(self)
 
 		for event in self.level.events:
+			# hot bar scrolling
 			if event.type == pygame.MOUSEWHEEL and self.scene == 'game':
 				self.holding_index += event.y*-1
 
@@ -69,13 +71,15 @@ class Player(pygame.sprite.Sprite):
 					self.holding_index = 9
 				elif self.holding_index >= 10:
 					self.holding_index = 1
+			# opening inventory
 			if event.type == pygame.KEYDOWN:
 				if event.key == pygame.K_e:
 					self.scene = 'inventory'
 					self.direction.x = 0
+			# placing/using blocks
 			if event.type == pygame.MOUSEBUTTONDOWN:
 				if event.button and not self.rect.collidepoint(mouse_pos) and event.button == 3:
-					success = get_slot_player_holding(self).on_right_click(mouse_pos) # this system will need to be changed in the future for things such as food and throwables
+					success = get_slot_player_holding(self).on_right_click(mouse_pos) # this system will need to be changed in the future for things such as food
 					if not success:
 						block = get_block_at(x=mouse_pos[0], y=mouse_pos[1])
 						func = getattr(block, 'use', False)
@@ -83,7 +87,7 @@ class Player(pygame.sprite.Sprite):
 							func()
 
 
-		if self.scene == 'game':
+		if self.scene == 'game': # just as a precaution
 			keys_pressed = pygame.key.get_pressed()
 
 			# movement
@@ -95,9 +99,8 @@ class Player(pygame.sprite.Sprite):
 				self.direction.x = 0
 
 			# jumping
-			if keys_pressed[pygame.K_SPACE] and not self.jumping and not self.falling:
-				self.direction.y = -13
-				self.jumping = True
+			if keys_pressed[pygame.K_SPACE]:
+				self.jump(-13)
 
 			# changing holding slot
 			for num in range(1, 10):
@@ -137,42 +140,42 @@ class Player(pygame.sprite.Sprite):
 	def inventory_input(self):
 		for event in self.level.events:
 			if event.type == pygame.MOUSEBUTTONUP:
-				if self.stopped_pressing:
+				if self.stopped_pressing: # The player will release the mouse button twice so we have to make sure to only do stuff on the second button up
 					for slot in self.inventory_sprites:
 						rect = slot.rect
 						spot = self.crafting_inv if slot.location == 'crafting box' else self.inventory
 						if self.holding and rect.collidepoint(event.pos):
-							if slot.obj is None:
+							if slot.obj is None: # Put the item we're holding into the empty spot
 								x, y = slot.xy
-								if event.button == 1:
+								if event.button == 1: # pick up the entire stack
 									spot[x][y] = self.holding
 									slot.change_item(self.holding.obj)
 									self.holding = None
-								else:
+								else: # pick up a single item
 									slt = self.holding.copy()
 									slt.amount = 1
 									spot[x][y] = slt
 									slot.change_item(slt.obj)
 									self.holding.amount -= 1
 								self.selected = []
-							elif slot.obj.name == self.holding.obj.name:
-								if slot.amount < 64:
-									can_get = 64-slot.amount if event.button == 1 else 1
-									if can_get >= self.holding.amount:
+							elif slot.obj.name == self.holding.obj.name: # the item we're holding and the slot item are the same
+								if slot.amount < 64: # if the slot is already at 64 let's not bother
+									can_get = 64-slot.amount if event.button == 1 else 1 # if left click place the entire stack otherwise only place a single item
+									if can_get >= self.holding.amount: # after placing we won't have a surplus 
 										slot.amount += self.holding.amount
 										self.holding = None
 										self.selected = []
-									else:
+									else: # we have a surplus
 										slot.amount += can_get
 										self.holding.amount -= can_get
-							else:
+							else: # the item we're holding and the slot item are not the same, swap places
 								x, y = slot.xy
 								old_slot = slot.copy()
 								spot[x][y] = self.holding
 								slot.change_item(self.holding.obj)
 								self.holding = old_slot
-					self.crafting_output = self.craft(self.crafting_inv)
-				else:
+					self.crafting_output = self.craft(self.crafting_inv) # updating the crafting result for display
+				else: # the first time we release the mouse button
 					if self.selected:
 						self.selected = []
 						if not self.holding.display_amount:
@@ -185,12 +188,12 @@ class Player(pygame.sprite.Sprite):
 				if self.crafting_output.obj:
 					rect = self.crafting_output.rect
 					if self.holding:
-						if self.holding.slot_name == self.crafting_output.slot_name and rect.collidepoint(event.pos):
+						if self.holding.slot_name == self.crafting_output.slot_name and rect.collidepoint(event.pos): # if the item we're holding is the same as the crafting output
 							self.holding.amount += self.crafting_output.amount
 							self.crafting_output = Slot(obj=None, level=self.level, player=self) 
 
-							if (self.holding.amount + self.crafting_output.amount) <= 64:
-								for row in self.crafting_inv:
+							if (self.holding.amount + self.crafting_output.amount) <= 64: # we have reached the stack limit
+								for row in self.crafting_inv: # reduce the items, in the future this should be slightly changed for items such as milk buckets
 									for slot in row:
 										if slot.obj:
 											if slot.amount == 1:
@@ -204,7 +207,7 @@ class Player(pygame.sprite.Sprite):
 							self.crafting_output = Slot(obj=None, level=self.level, player=self) 
 
 
-							for row in self.crafting_inv:
+							for row in self.crafting_inv: # reduce the items, in the future this should be slightly changed for items such as milk buckets
 								for slot in row:
 									if slot.obj:
 										if slot.amount == 1:
@@ -214,7 +217,7 @@ class Player(pygame.sprite.Sprite):
 											slot.amount -= 1
 							return
 
-				if self.holding:
+				if self.holding: # double click on an item to gather it all
 					t = time.time() - self.last_button_pressed
 					if t < .3:
 						self.stopped_pressing = False
@@ -233,7 +236,7 @@ class Player(pygame.sprite.Sprite):
 				"""
 				CHECK IF LEFT SHIFT CLICK ON CRAFTING OUTPUT
 				"""
-				for slot in self.inventory_sprites:
+				for slot in self.inventory_sprites: # I have no idea what any of this is, go in there with a hazmat suit
 					rect = slot.rect
 					spot = self.crafting_inv if slot.location == 'crafting box' else self.inventory
 					if rect.collidepoint(event.pos):
@@ -296,11 +299,11 @@ class Player(pygame.sprite.Sprite):
 									self.holding = s
 
 				self.crafting_output = self.craft(self.crafting_inv)
-			if event.type == pygame.KEYDOWN:
+			if event.type == pygame.KEYDOWN: # go out of the inventory
 				if event.key in [pygame.K_e, pygame.K_ESCAPE]:
 					self.scene = 'game'
 					return
-				for num in range(1, 10):
+				for num in range(1, 10): # tp slot items using numbers
 					key = getattr(pygame, f"K_{num}")
 					if event.key == key:
 						mouse_pos = pygame.mouse.get_pos()
@@ -313,7 +316,7 @@ class Player(pygame.sprite.Sprite):
 								self.swap((x,y), (0,num))
 						if self.crafting_output.rect.collidepoint(mouse_pos):
 							num -= 1
-							if not self.inventory[0][num].obj:
+							if not self.inventory[0][num].obj: # this should be changed in case the slot item is the same as the crafting output
 								self.inventory[0][num] = self.crafting_output.copy()
 
 								for row in self.crafting_inv:
@@ -327,7 +330,7 @@ class Player(pygame.sprite.Sprite):
 				self.crafting_output = self.craft(self.crafting_inv)
 
 
-		pressed = pygame.mouse.get_pressed()
+		pressed = pygame.mouse.get_pressed() # hold right/left click and hover over other items
 		if (self.stopped_pressing or len(self.selected) > 1) and (pressed[0] or pressed[2]) and self.holding:
 			pos = pygame.mouse.get_pos()
 			self.crafting_output = self.craft(self.crafting_inv)
@@ -370,7 +373,7 @@ class Player(pygame.sprite.Sprite):
 							self.selected.pop()
 
 
-	def crafting_table_input(self):
+	def crafting_table_input(self): # same as `inventory_input` not gonna document it twice
 		inv = self.scene.inventory
 		for event in self.level.events:
 			if event.type == pygame.MOUSEBUTTONUP:
@@ -485,8 +488,8 @@ class Player(pygame.sprite.Sprite):
 								while (not is_satisfied) and (tries < 50):
 									tries += 1
 									try:
-										for x_, y_ in sorted(self.find(slot.obj), key = lambda i: i[0]):
-											if slot.location == 'crafting box' or check == (x_ != 0):
+										if slot.location == 'crafting box': # Tp the item from the crafting box to the inventory
+											for x_, y_ in sorted(self.find(slot.obj), key = lambda i: i[0]):
 												slt = self.inventory[x_][y_]
 												if slt.amount < 64:
 													can_get = 64-slt.amount
@@ -499,20 +502,39 @@ class Player(pygame.sprite.Sprite):
 														slt.amount += can_get
 														slot.amount -= can_get
 														continue
-										if not is_satisfied:
-											raise ValueError
+											if not is_satisfied:
+												raise ValueError
+										else: # Do the opposite
+											for x_, y_ in sorted(self.find(slot.obj, inventory=inv), key = lambda i: i[0]):
+												slt = inv[x_][y_]
+												if slt.amount < 64:
+													can_get = 64-slt.amount
+													if can_get >= slot.amount:
+														slt.amount += slot.amount
+														slot.change_item(None)
+														is_satisfied = True
+														break
+													else:
+														slt.amount += can_get
+														slot.amount -= can_get
+														continue
+											if not is_satisfied:
+												raise ValueError
 									except ValueError:
 										try:
 											if not is_satisfied:
-												for x_, y_ in sorted(self.find(), key = lambda i: i[0]):
-													if slot.location == 'crafting box':
+												if slot.location == 'crafting box': # Tp the item from the crafting box to the inventory
+													for x_, y_ in sorted(self.find(), key = lambda i: i[0]):
 														slt = self.inventory[x_][y_]
 														self.inventory[x_][y_] = slot
 														inv[x][y] = slt
 														is_satisfied = True
 														break
-													elif check == (x_ != 0):
-														self.swap((x,y), (x_, y_))
+												else: # Do the opposite
+													for x_, y_ in sorted(self.find(inventory=inv), key = lambda i: i[0]):
+														slt = inv[x_][y_]
+														inv[x_][y_] = slot
+														self.inventory[x][y] = slt
 														is_satisfied = True
 														break
 										except ValueError:
@@ -614,7 +636,7 @@ class Player(pygame.sprite.Sprite):
 		# 		if rect.collidepoint(pos):
 
 
-	def move(self, speed):
+	def move(self, speed): # make sure the player is moving correctly
 		for _ in range(self.speed):
 			self.rect.x += self.direction.x
 			self.collision('horizontal')
@@ -622,11 +644,17 @@ class Player(pygame.sprite.Sprite):
 		self.collision('vertical')
 		self.coor = [self.rect.x, self.rect.y]
 
-	def collision(self, direction):
-		if direction == 'horizontal':
+	def jump(self, power): # the lower the power the higher the jump
+		if not self.jumping and not self.falling: # no double jumping in my gaame >:(
+			self.direction.y = power
+			self.jumping = True
+
+
+	def collision(self, direction): # make sure the player is not doing wall hacks
+		if direction == 'horizontal': # right-left
 			for sp in self.obstacles_sprites:
 				if sp.rect.colliderect(self.rect):
-					if self.falling or self.jumping:
+					if self.falling or self.jumping: # if the player is in the air simply do normal collisions 
 						if self.direction.x > 0:
 							self.rect.right = sp.rect.left
 							return 0
@@ -635,12 +663,13 @@ class Player(pygame.sprite.Sprite):
 							self.rect.left = sp.rect.right
 							return 1
 					else:
-						sp.rect.y += 33
+						sp.rect.y += 33 # move the block down 33 pixels, if the player no longer collides with it then we don't do collision
 						group = pygame.sprite.GroupSingle(sp)
 						sprite = pygame.sprite.spritecollideany(self, group, pygame.sprite.collide_mask)
-						sp.rect.y -= 33
+						sp.rect.y -= 33 # reset the block's position
 
-						if sprite:
+						if sprite: # the block still collides, let's do collision
+							# TODO: check if the player goes to the top of this block if it will collide with any other blocks
 							if self.direction.x > 0:
 								self.rect.right = sprite.rect.left
 								group.empty()
@@ -705,11 +734,11 @@ class Player(pygame.sprite.Sprite):
 		# 			if self.direction.y < 0:
 		# 				self.rect.top = sprite.rect.bottom
 		# 				return 1
-		if direction == 'vertical':
+		if direction == 'vertical': # up-down
 			for sprite in self.obstacles_sprites:
 				if sprite.rect.colliderect(self.rect):
 					group = pygame.sprite.GroupSingle(sprite)
-					if self.direction.y > 0:
+					if self.direction.y > 0: # the player is jumping, this is in case the player attempts to jump into an upper half of a slab for example
 						sprite = pygame.sprite.spritecollideany(self, group, pygame.sprite.collide_mask)
 						if sprite:
 							while True:
@@ -721,7 +750,7 @@ class Player(pygame.sprite.Sprite):
 							self.rect.y += 1
 						return 0
 
-					if self.direction.y < 0:
+					if self.direction.y < 0: # the player is falling, this is in case the player falls into the bottom half of a slab for example
 						sprite = pygame.sprite.spritecollideany(self, group, pygame.sprite.collide_mask)
 						if sprite:
 							while True:
@@ -733,7 +762,7 @@ class Player(pygame.sprite.Sprite):
 							self.rect.y -= 1
 						return 1
 
-	def apply_gravity(self):
+	def apply_gravity(self): # although this may be implied, this does not actually move the player. It simply makes sure the variables are correct
 		if self.jumping:
 			if self.direction.y < 0:
 				self.direction.y += .6
@@ -741,40 +770,40 @@ class Player(pygame.sprite.Sprite):
 				self.collision('vertical')
 				collide = False
 				for sprite in self.obstacles_sprites:
-					if sprite.rect.bottom in range(self.rect.top, self.rect.bottom) and self.rect.right > sprite.rect.left and self.rect.left < sprite.rect.right:
+					if sprite.rect.bottom in range(self.rect.top, self.rect.bottom) and self.rect.right > sprite.rect.left and self.rect.left < sprite.rect.right: # is the player jumping into a block?
 						collide = True
 						break
-				if collide:
+				if collide: # end the jump prematurely
 					self.direction.y = 1
 					self.falling = True
 					self.jumping = False
-			else:
+			else: # end the jump normally
 				self.direction.y = 1
 				self.jumping = False
 				self.falling = True
-		else:
+		else: # if we're not jumping then we're falling
 			self.collision('vertical')
 			collide = False
-			self.rect.y += 1
+			self.rect.y += 1 # if you're at the top of the block then it wouldn't consider you colliding so we have to push the player a pixel down
 			for sprite in self.obstacles_sprites:
 				if sprite.rect.top in range(self.rect.top, self.rect.bottom+1) and self.rect.right > sprite.rect.left and self.rect.left < sprite.rect.right:
 					group = pygame.sprite.GroupSingle(sprite)
-					sprite = pygame.sprite.spritecollideany(self, group, pygame.sprite.collide_mask)
+					sprite = pygame.sprite.spritecollideany(self, group, pygame.sprite.collide_mask) # we have to make sure that the player is colliding with the sprite not the rect
 					if sprite:
 						collide = True
 						group.empty()
 						break
 			self.rect.y -= 1
 
-			if collide:
+			if collide: # we're no longer falling nor jumping, here is where we will calculate fall damage
 				self.direction.y = 1
 				self.falling = False
 			else:
 				self.falling = True
-				if self.direction.y < 30:
+				if self.direction.y < 30: # cap the falling speed at 30
 					self.direction.y += .6
 
-	def add_item(self, obj):
+	def add_item(self, obj): # give the player an item
 		try:
 			x, y = list(self.find(obj))[0]
 			self.inventory[x][y].amount += 1
@@ -786,14 +815,14 @@ class Player(pygame.sprite.Sprite):
 			except ValueError:
 				pass
 
-	def pickup(self):
+	def pickup(self): # pick up fallen items around the player
 		for sprite in self.dropped_entities:
 			if self.pickup_range.colliderect(sprite.rect):
 				sprite.kill()
 				self.add_item(sprite.obj)
 
 
-	def swap(self, xy1, xy2):
+	def swap(self, xy1, xy2): # swap to items in the inventory
 		x, y = xy1
 		x_, y_ = xy2
 
@@ -803,10 +832,10 @@ class Player(pygame.sprite.Sprite):
 		self.inventory[x][y] = slot2
 		self.inventory[x_][y_] = slot1
 
-	def find(self, obj=None):
+	def find(self, obj=None, *, inventory=None): # find any item in `inventory` or the player's inventory 
 		name = obj.name if obj else ''
 		found = False
-		for x, row in enumerate(self.inventory):
+		for x, row in enumerate(inventory or self.inventory):
 			for y, slot in enumerate(row):
 				if slot.slot_name == name and slot.amount < 64:
 					found = True
@@ -814,7 +843,7 @@ class Player(pygame.sprite.Sprite):
 		if not found:
 			raise ValueError("item not in the list")
 
-	def tick(self):
+	def tick(self): # we will do stuff here, some day
 		# print(self.holding_index)
 		return
 
@@ -889,11 +918,11 @@ class PlayerDraw:
 		self.hotbar_text_transparency = 255
 
 	def draw(self):
-		self.draw_hotbar()
-		if isinstance(self.player.scene, str):
+		self.draw_hotbar() # the hotbar is always being drawn which is kinda weird
+		if isinstance(self.player.scene, str): # 'game'/'inventory'
 			if self.player.scene == 'inventory':
 				self.draw_inventory()
-			elif self.player.scene == 'game':
+			elif self.player.scene == 'game': # draw outlines
 				# highlighting
 
 				mouse_pos = get_mouse_pos(self.player)
@@ -935,10 +964,10 @@ class PlayerDraw:
 			# 	img.set_alpha(128)
 			# 	self.screen.blit(img, (x*64, y*64))
 
-		if self.hotbar_text_transparency <= 0:
+		if self.hotbar_text_transparency <= 0: # if the player picked up a new item/switched to a new item we add a fading text
 			self.hotbar_text = ''
 
-	def draw_transparent(self, rect, color, width=0, **kwargs):
+	def draw_transparent(self, rect, color, width=0, **kwargs): # A useful function that draws transparent rects
 		strategy=kwargs.pop('strategy', pygame.draw.rect)
 		rect = rect.copy()
 		topleft = tuple(rect.topleft)
@@ -963,7 +992,7 @@ class PlayerDraw:
 
 
 
-	def draw_hotbar(self):
+	def draw_hotbar(self): # need and will change this to look MUCH better
 		height = 42
 		width = 378
 
