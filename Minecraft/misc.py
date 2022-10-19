@@ -124,3 +124,18 @@ def get_block_at(*, x, y):
 	x = int(x//64)
 	y = int(y//64)
 	return WORLD_MAP[y][x]
+
+
+
+# MATH
+
+def calculate_angle(p1, p2):
+	return math.atan2(p2[1] - p1[1], p2[0] - p1[0])
+
+def calculate_force(angle, force):
+	fx = math.cos(angle) * force
+	fy = math.sin(angle) * force
+	return fx, fy
+
+def in_circle(point, circle_center, circle_rad):
+	return math.sqrt((point[0] - circle_center[0]) ** 2 + (point[1] - circle_center[1]) ** 2) < circle_rad

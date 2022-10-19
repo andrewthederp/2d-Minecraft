@@ -54,8 +54,8 @@ class Player(pygame.sprite.Sprite):
 
 
 		# RANGES
-		self.reach = pygame.Rect(0,0,64*8,64*7)
-		self.pickup_range = pygame.Rect(0,0,64*3,64*2)
+		self.reach = pygame.Rect(0,0,64*8,64*7) # Change this to raduises instead
+		self.pickup_range = pygame.Rect(0,0,64*3,64*2) # Change this to raduises instead
 
 
 	def input(self):
@@ -76,6 +76,18 @@ class Player(pygame.sprite.Sprite):
 				if event.key == pygame.K_e:
 					self.scene = 'inventory'
 					self.direction.x = 0
+				if event.key == pygame.K_q:
+					holding = get_slot_player_holding(self)
+					if holding.obj: # sometimes I wish I used pymunk
+						img = holding.image
+						rect = img.get_rect(center=self.rect.center)
+						entity = self.level.drop(holding.obj, img, rect, thrown=True)
+
+
+						entity.jump(-15)
+						holding.amount -= 1
+						if holding.amount == 0:
+							holding.change_item(None)
 			# placing/using blocks
 			if event.type == pygame.MOUSEBUTTONDOWN:
 				if event.button and not self.rect.collidepoint(mouse_pos) and event.button == 3:
@@ -636,7 +648,7 @@ class Player(pygame.sprite.Sprite):
 		# 		if rect.collidepoint(pos):
 
 
-	def move(self, speed): # make sure the player is moving correctly
+	def move(self): # make sure the player is moving correctly
 		for _ in range(self.speed):
 			self.rect.x += self.direction.x
 			self.collision('horizontal')
@@ -645,7 +657,7 @@ class Player(pygame.sprite.Sprite):
 		self.coor = [self.rect.x, self.rect.y]
 
 	def jump(self, power): # the lower the power the higher the jump
-		if not self.jumping and not self.falling: # no double jumping in my gaame >:(
+		if not self.jumping and not self.falling: # no double jumping in my game >:(
 			self.direction.y = power
 			self.jumping = True
 
@@ -815,11 +827,11 @@ class Player(pygame.sprite.Sprite):
 			except ValueError:
 				pass
 
-	def pickup(self): # pick up fallen items around the player
-		for sprite in self.dropped_entities:
-			if self.pickup_range.colliderect(sprite.rect):
-				sprite.kill()
-				self.add_item(sprite.obj)
+	# def pickup(self): # pick up fallen items around the player
+	# 	for sprite in self.dropped_entities:
+	# 		if self.pickup_range.colliderect(sprite.rect):
+	# 			sprite.kill()
+	# 			self.add_item(sprite.obj)
 
 
 	def swap(self, xy1, xy2): # swap to items in the inventory
@@ -895,9 +907,9 @@ class Player(pygame.sprite.Sprite):
 		else:
 			if self.scene.name == 'crafting table':
 				self.crafting_table_input()
-		self.pickup()
+		# self.pickup()
 		self.apply_gravity()
-		self.move(self.speed)
+		self.move()
 
 class PlayerDraw:
 	def __init__(self, player):
