@@ -13,5 +13,50 @@
 			["oak plank","oak plank",null],
 			["oak plank","oak plank",null],
 			[null,null,null]],
+			"amount": 1},
+	"Stick": {"recipe": [
+			["oak plank",null,null],
+			["oak plank",null,null],
+			[null,null,null]],
+			"amount": 4},
+	"WoodenPickaxe": {"recipe": [
+			["oak plank","oak plank","oak plank"],
+			[null,"stick",null],
+			[null,"stick",null]],
+			"amount": 1},
+	"WoodenAxe": {"recipe": [
+			["oak plank","oak plank",null],
+			["stick","oak plank",null],
+			["stick",null,null]],
+			"amount": 1},
+	"WoodenAxe_": {"recipe": [
+			["oak plank","oak plank",null],
+			["oak plank","stick",null],
+			[null,"stick",null]],
+			"amount": 1},
+	"WoodenShovel": {"recipe": [
+			["oak plank",null,null],
+			["stick",null,null],
+			["stick",null,null]],
+			"amount": 1},
+	"StonePickaxe": {"recipe": [
+			["cobble stone","cobble stone","cobble stone"],
+			[null,"stick",null],
+			[null,"stick",null]],
+			"amount": 1},
+	"StoneAxe": {"recipe": [
+			["cobble stone","cobble stone",null],
+			["stick","cobble stone",null],
+			["stick",null,null]],
+			"amount": 1},
+	"StoneAxe_": {"recipe": [
+			["cobble stone","cobble stone",null],
+			["cobble stone","stick",null],
+			[null,"stick",null]],
+			"amount": 1},
+	"StoneShovel": {"recipe": [
+			["cobble stone",null,null],
+			["stick",null,null],
+			["stick",null,null]],
 			"amount": 1}
 }

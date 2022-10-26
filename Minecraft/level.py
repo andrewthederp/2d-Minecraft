@@ -78,8 +78,8 @@ class Level:
 		thread = Thread(target=inner_func)
 		thread.start()
 
-	def drop(self, obj, image, rect):
-		Entity(obj, image, rect, level=self, groups=[self.visible_sprites, self.dropped_entities])
+	def drop(self, obj, image, rect, thrown=False, pickup_cooldown=0):
+		return DroppedEntity(obj, image, rect, level=self, thrown=thrown, pickup_cooldown=pickup_cooldown)
 
 	def run(self, events):
 		self.events = events
@@ -145,7 +145,6 @@ class Camera(pygame.sprite.Group):
 
 		# visible_x_range = int(self.offset.x)//TILE_SIZE, ((int(self.offset.x)+WIDTH)//TILE_SIZE)+1
 		# visible_y_range = int(self.offset.y)//TILE_SIZE, ((int(self.offset.y)+HEIGHT)//TILE_SIZE)+1
-
 		for sprite in self.sprites():
 			pos_x = sprite.rect.x//TILE_SIZE
 			pos_y = sprite.rect.y//TILE_SIZE
@@ -158,4 +157,6 @@ class Camera(pygame.sprite.Group):
 				else:
 					offset_pos =  sprite.rect.topleft - self.offset
 					image = sprite.image
+				if hover:=getattr(sprite, 'hover', False): # Gotta do this to have both gravity and hovering for dropped entities
+					offset_pos += (0, hover)
 				surface.blit(image, offset_pos)

@@ -68,9 +68,17 @@ def get_item_image(name, convert_alpha=False):
 		if convert_alpha:
 			return img.convert_alpha()
 		return img
-	else:
-		item_path = os.path.join(asset_path, 'items', 'texture_not_found_item.png')
-		return pygame.image.load(item_path)
+
+	item_path = os.path.join(asset_path, 'items', name + '.png')
+	if os.path.isfile(item_path):
+		img = pygame.image.load(item_path)
+		if convert_alpha:
+			return img.convert_alpha()
+		return img
+
+
+	item_path = os.path.join(asset_path, 'items', 'texture_not_found_item.png')
+	return pygame.image.load(item_path)
 
 def get_block_image(name, convert_alpha=False):
 	item_path = os.path.join(asset_path, 'blocks', name + '.png')
@@ -124,8 +132,6 @@ def get_block_at(*, x, y):
 	x = int(x//64)
 	y = int(y//64)
 	return WORLD_MAP[y][x]
-
-
 
 # MATH
 

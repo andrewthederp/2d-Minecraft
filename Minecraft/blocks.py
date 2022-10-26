@@ -94,6 +94,7 @@ class BreakableBlock:
 
 		percent = (mined_time/self.mine_cooldown)*100
 		if percent != -(float('inf')):
+			self.level.player_draw.item_used()
 			num = round_to_nearest(percent, 16)
 			image = breaking_dict.get(str(num)+'.png')
 			if image:
@@ -529,7 +530,11 @@ class Stone(BreakableBlock, pygame.sprite.Sprite):
 		self.break_tick(self.on_break)
 
 	def on_break(self):
-		# Drop cobblstone if tool >= wooden pickaxe
+		tool = get_slot_player_holding(self.level.player)
+		can_harvest = set(k for k, v in tool_mults.items() if v >= tool_mults[self.min_harvest])
+		if can_harvest:
+			rect = self.slot_image.get_rect(center=self.rect.center)
+			self.level.drop(CobbleStone(rect.center, [], level=self.level), CobbleStone.slot_image, rect) # When adding enchantments, make sure to drop stone if silk touch
 		return
 
 	def on_right_click(self, mouse_pos):
@@ -562,7 +567,11 @@ class CobbleStone(BreakableBlock, pygame.sprite.Sprite):
 		self.break_tick(self.on_break)
 
 	def on_break(self):
-		# Drop cobblestone if tool >= wooden pickaxe
+		tool = get_slot_player_holding(self.level.player)
+		can_harvest = set(k for k, v in tool_mults.items() if v >= tool_mults[self.min_harvest])
+		if can_harvest:
+			rect = self.slot_image.get_rect(center=self.rect.center)
+			self.level.drop(CobbleStone(rect.center, [], level=self.level), self.slot_image, rect)
 		return
 
 	def on_right_click(self, mouse_pos):

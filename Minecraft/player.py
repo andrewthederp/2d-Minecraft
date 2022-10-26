@@ -1,5 +1,6 @@
 import pygame, os, random, copy, time, json
 from blocks import *
+from items import *
 from settings import *
 from misc import *
 from slots import Slot
@@ -36,6 +37,7 @@ class Player(pygame.sprite.Sprite):
 		# INV/ITEMS
 		self.inventory = [[Slot(level=self.level, player=self) for _ in range(9)] for _ in range(4)]
 		self.inventory[0][0] = Slot(level=self.level, player=self, obj=CraftingTable((0,0), [], level=self.level))
+		self.inventory[0][1] = Slot(level=self.level, player=self, obj=WoodenPickaxe(level=self.level))
 		self.pressing_block = None
 
 		self.holding_index = 1
@@ -81,7 +83,7 @@ class Player(pygame.sprite.Sprite):
 					if holding.obj: # sometimes I wish I used pymunk
 						img = holding.image
 						rect = img.get_rect(center=self.rect.center)
-						entity = self.level.drop(holding.obj, img, rect, thrown=True)
+						entity = self.level.drop(holding.obj, img, rect, thrown=True, pickup_cooldown=60)
 
 
 						entity.jump(-15)
@@ -97,6 +99,8 @@ class Player(pygame.sprite.Sprite):
 						func = getattr(block, 'use', False)
 						if func:
 							func()
+					else:
+						self.level.player_draw.item_used()
 
 
 		if self.scene == 'game': # just as a precaution
@@ -890,7 +894,7 @@ class Player(pygame.sprite.Sprite):
 			if crafting_recipe == crafting:
 				if return_recipe:
 					return crafting_recipe
-				name_ = name
+				name_ = name.strip('_')
 				break
 		slot = Slot.from_name(name_, level=self.level, player=self)
 		if name_:
@@ -913,24 +917,40 @@ class Player(pygame.sprite.Sprite):
 
 class PlayerDraw:
 	def __init__(self, player):
+		# misc
 		self.player = player
 
 		self.screen = pygame.display.get_surface()
 
 		self.font_20 = get_font(20)
 
+		# gui
 		path = os.path.join(asset_path, 'inventory_ui.png')
 		self.inventory_img = pygame.image.load(path).convert_alpha()
 
 		path = os.path.join(asset_path, 'crafting_table_ui.png')
 		self.crafting_table_img = pygame.image.load(path).convert_alpha()
 
+		path = os.path.join(asset_path, 'hotbar_ui.png')
+		self.hotbar_img = pygame.image.load(path).convert_alpha()
+
+		path = os.path.join(asset_path, 'big_box.png')
+		self.big_box = pygame.image.load(path).convert_alpha()
+
+		# .
 		self.holding_slot = Slot(obj=None, player=self.player, level=self.player.level)
 		self.hotbar_text = ''
 		self.hotbar_text_transparency = 255
 
+		# Item holding
+
+		self.rotation = 0
+		self.rotating_back = True
+		self.last_direction = 0
+
 	def draw(self):
 		self.draw_hotbar() # the hotbar is always being drawn which is kinda weird
+		self.draw_item_holding()
 		if isinstance(self.player.scene, str): # 'game'/'inventory'
 			if self.player.scene == 'inventory':
 				self.draw_inventory()
@@ -1003,30 +1023,49 @@ class PlayerDraw:
 	# 		pygame.draw.line(self.screen, (197, 197, 197), (rect.x+2, y_), (rect.right-1, y_), width=3)
 
 
+	def draw_item_holding(self):
+		self.last_direction = self.player.direction.x or self.last_direction
+		item = get_slot_player_holding(self.player).obj
+		if item:
+			image = item.image
 
-	def draw_hotbar(self): # need and will change this to look MUCH better
-		height = 42
-		width = 378
+			image = pygame.transform.scale(image, (16, 16))
 
-		hotbar_rect = pygame.Rect(0, HEIGHT-(height+7), width, height)
-		hotbar_rect.centerx = WIDTH*.5
+			if self.last_direction == 1:
+				rect = image.get_rect(centerx=self.player.rect.centerx, right=self.player.rect.right)
+			else:
+				rect = image.get_rect(centerx=self.player.rect.centerx, left=self.player.rect.left)
 
-		box = pygame.Rect((0, HEIGHT-(height+7)), (42, 42))
+			if self.rotating_back:
+				self.rotation -= 10
+				if self.rotation > 0:
+					image = pygame.transform.rotate(image, self.rotation)
+			else:
+				self.rotation += 10
+				if self.rotation > 90:
+					self.rotating_back = True
+				image = pygame.transform.rotate(image, self.rotation)
 
-		self.draw_transparent(hotbar_rect, (0,128,0,127))
-		hotbar_outline = hotbar_rect.copy()
-		hotbar_outline.x -= 4
-		hotbar_outline.y -= 4
-		hotbar_outline.w += 7
-		hotbar_outline.h += 7
-		pygame.draw.rect(self.screen, (0,0,0), hotbar_outline, 2)
+			self.screen.blit(image, (HALF_WIDTH+(16 if self.last_direction>0 else -32), HALF_HEIGHT+16))
+
+	def item_used(self):
+		if get_slot_player_holding(self.player).obj:
+			self.rotating_back = False
+			self.rotation = 0
+
+	def draw_hotbar(self):
+		width, height = self.hotbar_img.get_size()
+		hotbar_rect = self.hotbar_img.get_rect(bottom=HEIGHT, centerx=HALF_WIDTH)
+		self.screen.blit(self.hotbar_img, hotbar_rect)
+
+		box = pygame.Rect((0, HEIGHT-height), (42, 42))
 
 
 		for num in range(9):
 			box = box.copy()
-			box.x = hotbar_rect.x+(42*num)
-			if num != (int(self.player.holding_index)-1):
-				pygame.draw.rect(self.screen, (99,99,99), box, 5)
+			box.x = hotbar_rect.x+(39*num)
+			if num == self.player.holding_index-1:
+				self.screen.blit(self.big_box, box)
 
 			slot = self.player.inventory[0][num]
 			img = slot.image
@@ -1042,12 +1081,8 @@ class PlayerDraw:
 				self.hotbar_text_transparency = 255
 
 		if self.hotbar_text:
-			write_text(self.font_20, self.hotbar_text.title(), centery=hotbar_outline.y - 30, centerx=HALF_WIDTH, transparency=self.hotbar_text_transparency, surface=self.screen)
+			write_text(self.font_20, self.hotbar_text.title(), centery=hotbar_rect.y - 30, centerx=HALF_WIDTH, transparency=self.hotbar_text_transparency, surface=self.screen)
 			self.hotbar_text_transparency -= 2
-
-
-		big_box = pygame.Rect(hotbar_rect.x+((int(self.player.holding_index)-1)*42),HEIGHT-(height+10),45,45)
-		pygame.draw.rect(self.screen, (200,200,200), big_box, 9)
 
 	def draw_inventory(self):
 		highlight = None

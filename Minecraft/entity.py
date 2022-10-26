@@ -139,7 +139,7 @@ class Entity(pygame.sprite.Sprite):
 		pass
 
 class DroppedEntity(Entity): # when a block is broken, this comes too existence
-	def __init__(self, obj, image, rect, *, level, thrown=False):
+	def __init__(self, obj, image, rect, *, level, thrown=False, pickup_cooldown=0):
 		self.obj = obj
 
 		# Hovering
@@ -147,7 +147,7 @@ class DroppedEntity(Entity): # when a block is broken, this comes too existence
 		self.hover_up = True
 
 		# Picking up cooldown
-		self.can_be_picked = 60 # 60 frames, 1 seconds if running at 60 fps
+		self.can_be_picked = pickup_cooldown
 
 		super().__init__(image, rect, level=level, groups=[level.dropped_entities, level.visible_sprites])
 
