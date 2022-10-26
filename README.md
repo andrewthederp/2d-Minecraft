@@ -8,6 +8,8 @@ I wasn't planning on making this open source so the code is very bad.
   - Make it more efficent
   - Add crafting tables and make leaves drop normal stuff
   - Player gets teleported to the side of the stiars when trying to walk off
+  - Give tools durability
+  - add health/hunger and fall damage
 
 ## Done
   - Fixed slabs/stairs
