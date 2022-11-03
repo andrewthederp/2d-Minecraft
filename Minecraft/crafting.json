@@ -9,6 +9,11 @@
 			[null,null,null],
 			[null,null,null]],
 			"amount": 6},
+	"OakStairs": {"recipe": [
+			["oak plank",null,null],
+			["oak plank","oak plank",null],
+			["oak plank","oak plank","oak plank"]],
+			"amount": 4},
 	"CraftingTable": {"recipe": [
 			["oak plank","oak plank",null],
 			["oak plank","oak plank",null],
@@ -58,5 +63,10 @@
 			["cobble stone",null,null],
 			["stick",null,null],
 			["stick",null,null]],
+			"amount": 1},
+	"Furnace": {"recipe": [
+			["cobble stone","cobble stone","cobble stone"],
+			["cobble stone",null,"cobble stone"],
+			["cobble stone","cobble stone","cobble stone"]],
 			"amount": 1}
 }

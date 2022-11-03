@@ -176,7 +176,9 @@ class DroppedEntity(Entity): # when a block is broken, this comes too existence
 				self.hover_up = True
 
 	def pickup(self):
-		if self.can_be_picked <= 0 and self.rect.colliderect(self.level.player.pickup_range):
+		player = self.level.player
+		mouse_pos = get_mouse_pos(player)
+		if self.can_be_picked <= 0 and in_circle(player.rect.center, self.rect.center, player.pickup_range):
 			self.kill()
 			self.level.player.add_item(self.obj)
 

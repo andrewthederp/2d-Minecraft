@@ -1,6 +1,6 @@
 import pygame, os, random, copy
 from settings import *
-import blocks
+import blocks, items
 
 
 class Slot:
@@ -21,9 +21,11 @@ class Slot:
 		try:
 			obj = getattr(blocks, name)((0,0), [], level=kwargs.get('level'))
 		except AttributeError:
-			return Slot(**kwargs, obj=None)
-		else:
-			return Slot(**kwargs, obj=obj)
+			try:
+				obj = getattr(items, name)(level=kwargs.get('level'))
+			except AttributeError:
+				return Slot(**kwargs, obj=None)
+		return Slot(**kwargs, obj=obj)
 
 	@property
 	def amount(self):

@@ -56,8 +56,8 @@ class Player(pygame.sprite.Sprite):
 
 
 		# RANGES
-		self.reach = pygame.Rect(0,0,64*8,64*7) # Change this to raduises instead
-		self.pickup_range = pygame.Rect(0,0,64*3,64*2) # Change this to raduises instead
+		self.reach = 64*3
+		self.pickup_range = 64*1.5
 
 
 	def input(self):
@@ -95,7 +95,7 @@ class Player(pygame.sprite.Sprite):
 				if event.button and not self.rect.collidepoint(mouse_pos) and event.button == 3:
 					success = get_slot_player_holding(self).on_right_click(mouse_pos) # this system will need to be changed in the future for things such as food
 					if not success:
-						block = get_block_at(x=mouse_pos[0], y=mouse_pos[1])
+						block = self.level.chunk_list.get_at(x=mouse_pos[0], y=mouse_pos[1], convert=True)
 						func = getattr(block, 'use', False)
 						if func:
 							func()
@@ -133,9 +133,9 @@ class Player(pygame.sprite.Sprite):
 					self.pressing_block = None
 
 			for sprite in self.obstacles_sprites:
-				if sprite.rect.collidepoint(mouse_pos) and sprite.rect.colliderect(self.reach):
+				if sprite.rect.collidepoint(mouse_pos) and in_circle(mouse_pos, self.rect.center, self.reach):
 
-					block = get_block_at(x=mouse_pos[0], y=mouse_pos[1])
+					block = self.level.chunk_list.get_at(mouse_pos[0], mouse_pos[1], convert=True)
 
 					if block:
 						if pressed[0] and block != self.pressing_block:
@@ -233,9 +233,9 @@ class Player(pygame.sprite.Sprite):
 											slot.amount -= 1
 							return
 
-				if self.holding: # double click on an item to gather it all
+				if self.holding and event.button == 1: # double click on an item to gather it all
 					t = time.time() - self.last_button_pressed
-					if t < .3:
+					if t < .2:
 						self.stopped_pressing = False
 						for slot in self.inventory_sprites:
 							if slot.slot_name == self.holding.slot_name:
@@ -863,12 +863,6 @@ class Player(pygame.sprite.Sprite):
 		# print(self.holding_index)
 		return
 
-	def update_rects(self):
-		player_center = self.rect.center
-
-		self.reach.center = self.rect.center
-		self.pickup_range.center = self.rect.center
-
 	def craft(self, crafting, return_recipe=False):
 		crafting = [[slot.slot_name or None for slot in lst] for lst in crafting]
 
@@ -902,7 +896,6 @@ class Player(pygame.sprite.Sprite):
 		return slot
 
 	def update(self):
-		self.update_rects()
 		if isinstance(self.scene, str):
 			if self.scene == 'game':
 				self.input()
@@ -963,7 +956,7 @@ class PlayerDraw:
 				outline_surf.fill((0,0,0,0))
 				rect = None
 				for sprite in self.player.obstacles_sprites:
-					if sprite.rect.collidepoint(mouse_pos) and sprite.rect.colliderect(self.player.reach):
+					if sprite.rect.collidepoint(mouse_pos) and in_circle(mouse_pos, self.player.rect.center, self.player.reach):
 
 						rect = copy.deepcopy(sprite.rect)
 						for point in sprite.mask.outline():

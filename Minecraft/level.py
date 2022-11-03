@@ -7,6 +7,54 @@ from entity import *
 from misc import *
 from threading import Thread
 import time
+import random
+
+
+class Chunk:
+	def __init__(self, x, y):
+		self.x = x
+		self.y = y
+
+		self.chunk_blocks = [[None for _ in range(8)] for _ in range(8)]
+
+	def convert_xy(self, x, y):
+		return x//TILE_SIZE, y//TILE_SIZE
+
+	def add_block(self, block, x, y):
+		self.chunk_blocks[x][y] = block
+
+	def set_block(self, block, x, y):
+		x, y = self.convert_xy(x, y)
+		# print(x, y)
+		self.add_block(block, x, y)
+
+	def get_block(self, x, y):
+		return self.chunk_blocks[x][y]
+
+class ChunkList:
+	def __init__(self):
+		self.chunks = []
+
+	def add_chunk(self, chunk):
+		self.chunks.append(chunk)
+
+	def get_at(self, x, y, convert=False):
+		if convert:
+			x, y = int(y//64), int(x//64)
+		x_rem, y_rem = x%8, y%8
+		x_, y_ = x-x_rem, y-y_rem
+		for chunk in self.chunks:
+			if chunk.x == x_ and chunk.y == y_:
+				return chunk.get_block(x_rem, y_rem)
+
+	def set_at(self, block, x, y, convert=False):
+		if convert:
+			x, y = int(y//64), int(x//64)
+		x_rem, y_rem = x%8, y%8
+		x_, y_ = x-x_rem, y-y_rem
+		for chunk in self.chunks:
+			if chunk.x == x_ and chunk.y == y_:
+				return chunk.add_block(block, x_rem, y_rem)
 
 class Level:
 	def __init__(self):
@@ -29,6 +77,8 @@ class Level:
 		self.falling_sprites = pygame.sprite.Group()
 		self.dropped_entities = pygame.sprite.Group()
 
+		self.chunk_list = ChunkList()
+
 		conversion_dict = {'d':blocks.Dirt, 'g':blocks.Grass, 's':blocks.Sand, 'w':blocks.OakLog, 'l':blocks.OakLeaves, 'S':blocks.Stone, 'c':blocks.CobbleStone}
 
 		x, y = player_starting_coor[0] * TILE_SIZE, player_starting_coor[1] * TILE_SIZE
@@ -41,42 +91,79 @@ class Level:
 		self.player = Player((x, y), [self.visible_sprites], groups, level=self)
 		self.player_draw = PlayerDraw(self.player)
 
-		for row_index, row in enumerate(WORLD_COPY):
-			for col_index, col in enumerate(row):
-				x = col_index * TILE_SIZE
-				y = row_index * TILE_SIZE
+		chunk = None
+		for x in range(0, len(WORLD_MAP), 8):
+			for y in range(0, len(WORLD_MAP[0]), 8):
+				chunk = Chunk(x=x, y=y)
+				# blocks = [row[0:0+8] for row in WORLD_MAP[0:0+8]]
+				for row_index, row in enumerate(WORLD_MAP[x:x+8]):
+					for col_index, col in enumerate(row[y:y+8]):
+						block = conversion_dict.get(col)
 
-				block = conversion_dict.get(col)
-				if block:
-					groups = [self.obstacles_sprites,self.visible_sprites]
-					if getattr(block, 'fall', False):
-						groups.append(self.falling_sprites)
-					block = block((x, y), groups, level=self)
+						x__ = row_index * TILE_SIZE
+						y__ = col_index * TILE_SIZE
 
-				WORLD_MAP[row_index][col_index] = block
+						groups = [self.obstacles_sprites, self.visible_sprites]
+						if getattr(block, 'fall', False):
+							groups.append(self.falling_sprites)
+						if block:
+							block = block(((col_index+y) * TILE_SIZE, (row_index+x) * TILE_SIZE), groups, level=self)
+						chunk.set_block(block, x__, y__)
+				self.chunk_list.add_chunk(chunk)
+
+		# for row_index, row in enumerate(WORLD_COPY):
+		# 	for col_index, col in enumerate(row):
+		# 		x = col_index * TILE_SIZE
+		# 		y = row_index * TILE_SIZE
+
+		# 		block = conversion_dict.get(col)
+		# 		if block:
+		# 			groups = [self.obstacles_sprites,self.visible_sprites]
+		# 			if getattr(block, 'fall', False):
+		# 				groups.append(self.falling_sprites)
+		# 			block = block((x, y), groups, level=self)
+
+		# 		WORLD_MAP[row_index][col_index] = block
 
 	def get_neighbours(self, x, y):
 		for x_ in (x-1, x, x+1):
 			for y_ in (y-1, y, y+1):
 				try:
-					WORLD_MAP[y_][x_]
+					self.chunk_list.get_at(y_, x_)
 					yield x_, y_
 				except IndexError:
 					pass
 
+	# def get_chunk(self, xy, chunk_size):
+	# 	x, y = xy
+	# 	for lst in WORLD_MAP[x:x+chunk_size]:
+	# 		# yield chunk(lst, 8)
+	# 		yield lst[y:y+chunk_size]
+
 	def tick(self):
-		def inner_func():
-			self.falling_sprites.update()
-			while pygame.display.get_surface():
+		...
+	# 	def inner_func():
+	# 		while pygame.display.get_surface():
+	# 			for x in range(0, len(WORLD_MAP), 8):
+	# 				for y in range(0, len(WORLD_MAP[0]), 8):
 
-				pressing_block = self.player.pressing_block
-				if pressing_block:
-					self.player.pressing_block.tick()
+	# 					chunk = list(self.get_chunk((x,y), 8))
 
-				self.player.tick()
-				time.sleep(FPS/300)
-		thread = Thread(target=inner_func)
-		thread.start()
+	# 					for _ in range(random_tick_speed):
+	# 						x, y = random.randrange(0, 8), random.randrange(0, 8)
+	# 						try:
+	# 							block = chunk[x][y]
+	# 							if block:
+	# 								try:
+	# 									block.tick()
+	# 								except AttributeError:
+	# 									pass
+	# 						except IndexError:
+	# 							pass
+	# 			time.sleep(2)
+
+	# 	thread = Thread(target=inner_func)
+	# 	thread.start()
 
 	def drop(self, obj, image, rect, thrown=False, pickup_cooldown=0):
 		return DroppedEntity(obj, image, rect, level=self, thrown=thrown, pickup_cooldown=pickup_cooldown)
@@ -100,9 +187,9 @@ class Level:
 		# 	self.zoom = min(self.zoom+.1, 2)
 		# elif keys_pressed[pygame.K_MINUS]:
 		# 	self.zoom = max(self.zoom-.1, .5)
-
 		"""zooming isn't really worth it"""
 
+		self.falling_sprites.update()
 		self.visible_sprites.update()
 		self.visible_sprites.custom_draw(surface=self.screen, width=WIDTH, height=HEIGHT, zoom=self.zoom, max_zoom=2, center=self.player.rect.center)
 		self.sky.display(dt)

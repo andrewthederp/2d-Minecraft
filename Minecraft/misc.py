@@ -145,3 +145,6 @@ def calculate_force(angle, force):
 
 def in_circle(point, circle_center, circle_rad):
 	return math.sqrt((point[0] - circle_center[0]) ** 2 + (point[1] - circle_center[1]) ** 2) < circle_rad
+
+def chunk(lst, num):
+	return [lst[i:i+num] for i in range(0, len(lst), num)]
