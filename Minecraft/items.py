@@ -4,7 +4,7 @@ from misc import *
 class Stick:
 	name = 'stick'
 	slot_image = get_item_image('stick')
-	data = {'type':'crafting'}
+	data = {'type':'crafting', 'fuel':True}
 
 	def __init__(self, *, level):
 		self.image = self.slot_image.copy()
@@ -15,7 +15,7 @@ class Stick:
 class WoodenPickaxe:
 	name = 'wooden pickaxe'
 	slot_image = get_item_image('wooden_pickaxe')
-	data = {'type':'tool', 'tool_type':'pickaxe', 'material':'wood'}
+	data = {'type':'tool', 'tool_type':'pickaxe', 'material':'wood', 'fuel':True}
 
 	def __init__(self, *, level):
 		self.image = self.slot_image.copy()
@@ -26,7 +26,7 @@ class WoodenPickaxe:
 class WoodenAxe:
 	name = 'wooden axe'
 	slot_image = get_item_image('wooden_axe')
-	data = {'type':'tool', 'tool_type':'axe', 'material':'wood'}
+	data = {'type':'tool', 'tool_type':'axe', 'material':'wood', 'fuel':True}
 
 	def __init__(self, *, level):
 		self.image = self.slot_image.copy()
@@ -37,7 +37,7 @@ class WoodenAxe:
 class WoodenShovel:
 	name = 'wooden shovel'
 	slot_image = get_item_image('wooden_shovel')
-	data = {'type':'tool', 'tool_type':'shovel', 'material':'wood'}
+	data = {'type':'tool', 'tool_type':'shovel', 'material':'wood', 'fuel':True}
 
 	def __init__(self, *, level):
 		self.image = self.slot_image.copy()
@@ -74,6 +74,17 @@ class StoneShovel:
 	name = 'stone shovel'
 	slot_image = get_item_image('stone_shovel')
 	data = {'type':'tool', 'tool_type':'shovel', 'material':'stone'}
+
+	def __init__(self, *, level):
+		self.image = self.slot_image.copy()
+
+	def on_right_click(self, *args, **kwargs):
+		return False
+
+class CharCoal:
+	name = 'char coal'
+	slot_image = get_item_image('char coal')
+	data = {'type':'fuel', 'fuel':True}
 
 	def __init__(self, *, level):
 		self.image = self.slot_image.copy()

@@ -15,8 +15,7 @@ def get_break_time(*,
 	mining_fatigue=False,
 	mining_fatigue_level=1,
 	in_water=False,
-	has_aqua_affinity=False,
-	on_ground=True):
+	has_aqua_affinity=False):
 
 	speedMultiplier = 1
 	if is_best_tool:
@@ -36,9 +35,6 @@ def get_break_time(*,
 		speedMultiplier *= 0.3 ** min(mining_fatigue_level, 4)
 
 	if in_water and not has_aqua_affinity:
-		speedMultiplier /= 5
-
-	if not on_ground:
 		speedMultiplier /= 5
 
 	damage = speedMultiplier / block_hardness
@@ -148,3 +144,21 @@ def in_circle(point, circle_center, circle_rad):
 
 def chunk(lst, num):
 	return [lst[i:i+num] for i in range(0, len(lst), num)]
+
+def cut_image(image, percent, down=False, up=False, left=False, right=False):
+	w, h = image.get_size()
+	rect = None
+	if up:
+		rect = pygame.Rect((0, 0), (w, h*percent))
+	if down:
+		rect = pygame.Rect((0, 0), (w, h*percent))
+		rect.bottom = h
+	if right:
+		rect = pygame.Rect((0, 0), (w*percent, h))
+		rect.right = w
+	if left:
+		rect = pygame.Rect((0, 0), (w*percent, h))
+	if rect != None:
+		new_surf = image.subsurface(rect)
+		# new_image.blit(new_surf, rect)
+		return new_surf
