@@ -36,8 +36,8 @@ class Player(pygame.sprite.Sprite):
 
 		# INV/ITEMS
 		self.inventory = [[Slot(level=self.level, player=self) for _ in range(9)] for _ in range(4)]
-		self.inventory[0][0] = Slot(level=self.level, player=self, obj=CraftingTable((0,0), [], level=self.level))
-		self.inventory[0][1] = Slot(level=self.level, player=self, obj=WoodenPickaxe(level=self.level))
+		self.inventory[0][0] = Slot(level=self.level, player=self, obj=Furnace((0,0), [], level=self.level))
+		self.inventory[0][1] = Slot(level=self.level, player=self, obj=WoodenAxe(level=self.level))
 		self.pressing_block = None
 
 		self.holding_index = 1
@@ -327,9 +327,20 @@ class Player(pygame.sprite.Sprite):
 						for slot in self.inventory_sprites:
 							rect = slot.rect
 							if rect.collidepoint(mouse_pos):
-								num -= 1
-								x,y = slot.xy
-								self.swap((x,y), (0,num))
+								if slot.location in ['inventory', 'hotbar']: # if moving the stuff around in the inventory
+									num -= 1
+									x,y = slot.xy
+									self.swap((x,y), (0,num))
+								else: # moving from the inventory to the crafting inventory
+									num -= 1
+									x_, y_ = slot.xy
+									x, y = (0, num)
+
+									slot1 = self.inventory[x][y]
+									slot2 = self.crafting_inv[x_][y_]
+
+									self.inventory[x][y] = slot2.copy()
+									self.crafting_inv[x_][y_] = slot1.copy()
 						if self.crafting_output.rect.collidepoint(mouse_pos):
 							num -= 1
 							if not self.inventory[0][num].obj: # this should be changed in case the slot item is the same as the crafting output
@@ -442,10 +453,10 @@ class Player(pygame.sprite.Sprite):
 					rect = self.crafting_output.rect
 					if self.holding:
 						if self.holding.slot_name == self.crafting_output.slot_name and rect.collidepoint(event.pos):
-							self.holding.amount += self.crafting_output.amount
-							self.crafting_output = Slot(obj=None, level=self.level, player=self) 
 
 							if (self.holding.amount + self.crafting_output.amount) <= 64:
+								self.holding.amount += self.crafting_output.amount
+								self.crafting_output = Slot(obj=None, level=self.level, player=self) 
 								for row in inv:
 									for slot in row:
 										if slot.obj:
@@ -470,9 +481,9 @@ class Player(pygame.sprite.Sprite):
 											slot.amount -= 1
 							return
 
-				if self.holding:
+				if self.holding and event.button == 1:
 					t = time.time() - self.last_button_pressed
-					if t < .3:
+					if t < .2:
 						self.stopped_pressing = False
 						for slot in self.inventory_sprites:
 							if slot.slot_name == self.holding.slot_name:
@@ -583,9 +594,20 @@ class Player(pygame.sprite.Sprite):
 						for slot in self.inventory_sprites:
 							rect = slot.rect
 							if rect.collidepoint(mouse_pos):
-								num -= 1
-								x,y = slot.xy
-								self.swap((x,y), (0,num))
+								if slot.location in ['inventory', 'hotbar']:
+									num -= 1
+									x,y = slot.xy
+									self.swap((x,y), (0,num))
+								else:
+									num -= 1
+									x_, y_ = slot.xy
+									x, y = (0, num)
+
+									slot1 = self.inventory[x][y]
+									slot2 = inv[x_][y_]
+
+									self.inventory[x][y] = slot2.copy()
+									inv[x_][y_] = slot1.copy()
 						if self.crafting_output.rect.collidepoint(mouse_pos):
 							num -= 1
 							if not self.inventory[0][num].obj:
@@ -650,6 +672,302 @@ class Player(pygame.sprite.Sprite):
 		# 	for slot in self.inventory_sprites:
 		# 		rect = slot.rect
 		# 		if rect.collidepoint(pos):
+
+
+	def smelting_input(self): # same as `inventory_input` not gonna document it thrice
+		for event in self.level.events:
+			if event.type == pygame.MOUSEBUTTONUP:
+				if self.stopped_pressing:
+					for slot in self.inventory_sprites:
+						rect = slot.rect
+						if self.holding and rect.collidepoint(event.pos):
+							if slot.location == 'fuel' and self.holding.slot_data.get('fuel'):
+								if slot.obj is None:
+									slot.change_item(self.holding.obj)
+									if event.button == 1:
+										self.holding = None
+									elif event.button == 3:
+										slot.amount = 1
+										self.holding.amount -= 1
+									self.selected = []
+								elif slot.obj.name == self.holding.obj.name:
+									if slot.amount < 64:
+										can_get = 64-slot.amount if event.button == 1 else 1
+										if can_get >= self.holding.amount:
+											slot.amount += self.holding.amount
+											self.holding = None
+											self.selected = []
+										else:
+											slot.amount += can_get
+											self.holding.amount -= can_get
+								else:
+									old_slot = slot.copy()
+									self.scene.fuel_slot = self.holding
+									self.holding = old_slot
+							elif slot.location == 'input' and self.holding.slot_data.get('smeltable'):
+								if slot.obj is None:
+									slot.obj = self.holding.obj
+									if event.button == 1:
+										slot.amount = self.holding.amount
+										self.holding = None
+									elif event.button == 3:
+										slot.amount = 1
+										self.holding.amount -= 1
+									self.selected = []
+								elif slot.obj.name == self.holding.obj.name:
+									if slot.amount < 64:
+										can_get = 64-slot.amount if event.button == 1 else 1
+										if can_get >= self.holding.amount:
+											slot.amount += self.holding.amount
+											self.holding = None
+											self.selected = []
+										else:
+											slot.amount += can_get
+											self.holding.amount -= can_get
+								else:
+									old_slot = slot.copy()
+									self.scene.input_slot = self.holding
+									self.holding = old_slot
+							elif slot.location not in ['output', 'input', 'fuel']:
+								spot = self.inventory
+								if slot.obj is None:
+									x, y = slot.xy
+									if event.button == 1:
+										spot[x][y] = self.holding
+										slot.change_item(self.holding.obj)
+										self.holding = None
+									else:
+										slt = self.holding.copy()
+										slt.amount = 1
+										spot[x][y] = slt
+										slot.change_item(slt.obj)
+										self.holding.amount -= 1
+									self.selected = []
+								elif slot.obj.name == self.holding.obj.name:
+									if slot.amount < 64:
+										can_get = 64-slot.amount if event.button == 1 else 1
+										if can_get >= self.holding.amount:
+											slot.amount += self.holding.amount
+											self.holding = None
+											self.selected = []
+										else:
+											slot.amount += can_get
+											self.holding.amount -= can_get
+								else:
+									x, y = slot.xy
+									old_slot = slot.copy()
+									spot[x][y] = self.holding
+									slot.change_item(self.holding.obj)
+									self.holding = old_slot
+				else:
+					if self.selected:
+						self.selected = []
+						if not self.holding.display_amount:
+							self.holding = None
+						else:
+							self.holding.amount = self.holding.display_amount
+					self.stopped_pressing = True
+			if event.type == pygame.MOUSEBUTTONDOWN:
+
+				if self.scene.output_slot.obj:
+					rect = self.scene.output_slot.rect
+					if self.holding:
+						if self.holding.slot_name == self.scene.output_slot.slot_name and rect.collidepoint(event.pos):
+
+							if (self.holding.amount + self.scene.output_slot.amount) <= 64:
+								self.holding.amount += self.scene.output_slot.amount
+								self.scene.output_slot = Slot(obj=None, level=self.level, player=self) 
+					else:
+						if rect.collidepoint(event.pos):
+							self.holding = self.scene.output_slot.copy()
+							self.scene.output_slot = Slot(obj=None, level=self.level, player=self) 
+							return
+
+				if self.holding and event.button == 1:
+					t = time.time() - self.last_button_pressed
+					if t < .2 and event.button == 1:
+						self.stopped_pressing = False
+						for slot in self.inventory_sprites:
+							if slot.slot_name == self.holding.slot_name:
+								if (self.holding.amount + slot.amount) <= 64:
+									self.holding.amount += slot.amount
+									slot.change_item(None)
+								else:
+									can_get = 64-self.holding.amount
+									self.holding.amount += can_get
+									slot.amount -= can_get
+						return
+
+				self.last_button_pressed = time.time()
+
+				for slot in self.inventory_sprites:
+					rect = slot.rect
+					if rect.collidepoint(event.pos):
+						if not self.holding:
+							keys_pressed = pygame.key.get_pressed()
+							if keys_pressed[pygame.K_LSHIFT]:
+								x, y = slot.xy
+								if slot.location in ['inventory', 'hotbar']:
+									slot = self.inventory[x][y]
+									if slot.slot_data.get('fuel') and not self.scene.fuel_slot.obj:
+										self.scene.fuel_slot.change_item(slot.obj)
+										self.inventory[x][y] = Slot(obj=None, level=self.level, player=self)
+									elif slot.slot_data.get('fuel') and self.scene.fuel_slot.slot_name == slot.slot_name:
+										amount = 0
+
+										can_get = 64-self.scene.fuel_slot.amount
+										if can_get > slot.amount:
+											amount = can_get-slot.amount
+										else:
+											amount = slot.amount
+										self.scene.fuel_slot.amount += amount
+										slot.amount -= amount
+										if slot.amount <= 0:
+											self.inventory[x][y] = Slot(obj=None, level=self.level, player=self)
+									elif slot.slot_data.get('smeltable') and not self.scene.input_slot.obj:
+										self.scene.input_slot.change_item(slot.obj)
+										self.inventory[x][y] = Slot(obj=None, level=self.level, player=self)
+									elif slot.slot_data.get('smeltable') and self.scene.input_slot.slot_name == slot.slot_name:
+										amount = 0
+
+										can_get = 64-self.scene.input_slot.amount
+										if can_get > slot.amount:
+											amount = can_get-slot.amount
+										else:
+											amount = slot.amount
+										self.scene.input_slot.amount += amount
+										slot.amount -= amount
+										if slot.amount <= 0:
+											self.inventory[x][y] = Slot(obj=None, level=self.level, player=self)
+								else:
+									is_satisfied = False
+									tries = 0
+									while (not is_satisfied) and (tries < 50):
+										tries += 1
+										try:
+											for x_, y_ in sorted(self.find(slot.obj), key = lambda i: i[0]):
+												slt = self.inventory[x_][y_]
+												if slt.amount < 64:
+													can_get = 64-slt.amount
+													if can_get >= slot.amount:
+														slt.amount += slot.amount
+														slot.change_item(None)
+														is_satisfied = True
+														break
+													else:
+														slt.amount += can_get
+														slot.amount -= can_get
+														continue
+											if not is_satisfied:
+												raise ValueError
+										except ValueError:
+											try:
+												if not is_satisfied:
+													for x_, y_ in sorted(self.find(), key = lambda i: i[0]):
+														self.inventory[x_][y_] = slot.copy()
+														slot.change_item(None)
+														is_satisfied = True
+														break
+											except ValueError:
+												pass
+							elif slot.amount > 0:
+								if event.button == 1 or slot.amount <= 1:
+									self.stopped_pressing = False
+									self.holding = slot
+									self.inventory_sprites.remove(slot)
+									if slot.location in ['inventory', 'hotbar']:
+										x, y = slot.xy
+										self.inventory[x][y] = Slot(level=self.level, player=self)
+									else:
+										if slot.location == 'input':
+											self.scene.input_slot = Slot(level=self.level, player=self)
+										elif slot.location == 'output':
+											self.scene.output_slot = Slot(level=self.level, player=self)
+										elif slot.location == 'fuel':
+											self.scene.fuel_slot = Slot(level=self.level, player=self)
+								elif event.button == 3:
+									self.stopped_pressing = False
+									s = slot.copy()
+									amt = (slot.amount // 2) + 1 if slot.amount % 2 else slot.amount // 2
+									s.amount = amt
+									slot.amount -= amt
+									self.holding = s
+
+			if event.type == pygame.KEYDOWN:
+				if event.key in [pygame.K_e, pygame.K_ESCAPE]:
+					self.scene = 'game'
+					return
+				for num in range(1, 10):
+					key = getattr(pygame, f"K_{num}")
+					if event.key == key:
+						mouse_pos = pygame.mouse.get_pos()
+
+						for slot in self.inventory_sprites:
+							rect = slot.rect
+							if rect.collidepoint(mouse_pos):
+								num -= 1
+								x,y = slot.xy
+								self.swap((x,y), (0,num))
+						if self.scene.output_slot.rect.collidepoint(mouse_pos):
+							num -= 1
+							if not self.inventory[0][num].obj:
+								self.inventory[0][num] = self.scene.output_slot.copy()
+
+								for row in inv:
+									for slot in row:
+										if slot.obj:
+											if slot.amount == 1:
+												x, y = slot.xy
+												inv[x][y] = Slot(obj=None, level=self.level, player=self)
+											else:
+												slot.amount -= 1
+
+
+		pressed = pygame.mouse.get_pressed()
+		if (self.stopped_pressing or len(self.selected) > 1) and (pressed[0] or pressed[2]) and self.holding:
+			pos = pygame.mouse.get_pos()
+			for slot in self.inventory_sprites:
+				rect = slot.rect
+				if slot.obj:
+					continue
+
+				continue_ = False
+				for dct in self.selected:
+					if slot.xy == dct['xy'] and slot.location == dct['location']:
+						continue_ = True
+						break
+				if continue_:
+					continue
+				if rect.collidepoint(pos):
+					self.selected.append({'xy':slot.xy, 'location':slot.location})
+					length = len(self.selected)
+					if length >= 2:
+						self.stopped_pressing = False
+						if pressed[0]:
+							num, remainder = divmod(self.holding.amount, length)
+						else:
+							num = 1 if length <= self.holding.amount else 0
+							remainder = self.holding.amount-length
+						if num >= 1:
+							self.holding.display_amount = remainder
+							for dct in self.selected:
+								xy, location = dct.values()
+								spot = inv if location == 'crafting box' else self.inventory
+								x,y=xy
+								slt = spot[x][y]
+								if not slt.obj:
+									slot_copy = self.holding.copy()
+									slot_copy.amount = num
+									spot[x][y] = slot_copy
+								else:
+									slt.amount = num
+						else:
+							self.selected.pop()
+
+
+
+
+
 
 
 	def move(self): # make sure the player is moving correctly
@@ -904,6 +1222,8 @@ class Player(pygame.sprite.Sprite):
 		else:
 			if self.scene.name == 'crafting table':
 				self.crafting_table_input()
+			elif self.scene.data.get('smelter'):
+				self.smelting_input()
 		# self.pickup()
 		self.apply_gravity()
 		self.move()
@@ -930,6 +1250,16 @@ class PlayerDraw:
 		path = os.path.join(asset_path, 'big_box.png')
 		self.big_box = pygame.image.load(path).convert_alpha()
 
+		path = os.path.join(asset_path, 'smelting_ui.png')
+		self.smelting_img = pygame.image.load(path).convert_alpha()
+
+		path = os.path.join(asset_path, 'smelting_progress.png')
+		self.smelting_progress_img = pygame.image.load(path).convert_alpha()
+
+		path = os.path.join(asset_path, 'fuel_progress.png')
+		self.fuel_progress_img = pygame.image.load(path).convert_alpha()
+
+
 		# .
 		self.holding_slot = Slot(obj=None, player=self.player, level=self.player.level)
 		self.hotbar_text = ''
@@ -949,7 +1279,6 @@ class PlayerDraw:
 				self.draw_inventory()
 			elif self.player.scene == 'game': # draw outlines
 				# highlighting
-
 				mouse_pos = get_mouse_pos(self.player)
 
 				outline_surf = pygame.Surface((TILE_SIZE, TILE_SIZE)).convert_alpha()
@@ -978,7 +1307,13 @@ class PlayerDraw:
 		else:
 			if self.player.scene.name == 'crafting table':
 				self.draw_crafting_table()
-			# FIX THIS # What's broken? #
+			elif self.player.scene.data.get('smelter'):
+				self.draw_smelting_interface()
+
+
+
+
+			# FIX THIS # What's broken? # It doesn't display the block in the correct spot #
 
 			# slot = get_slot_player_holding(self.player)
 			# if not collide and ('block' in slot.slot_data.get('type')):
@@ -1056,7 +1391,7 @@ class PlayerDraw:
 
 		for num in range(9):
 			box = box.copy()
-			box.x = hotbar_rect.x+(39*num)
+			box.x = hotbar_rect.x+(38*num)
 			if num == self.player.holding_index-1:
 				self.screen.blit(self.big_box, box)
 
@@ -1303,7 +1638,7 @@ class PlayerDraw:
 
 		# CRAFTING OUTPUT
 
-		box = pygame.Rect((0, 0), (33, 33))
+		box = pygame.Rect((0, 0), (50, 50))
 		box.center = (440, 209)
 		slot = self.player.crafting_output
 		img = slot.image
@@ -1336,5 +1671,115 @@ class PlayerDraw:
 			pygame.draw.rect(self.screen, (75,0,130), rect, 2, border_radius=3)
 
 			write_text(self.font_20, highlight.slot_name.title(), centery = mouse_pos[1]-3, left=mouse_pos[0]+16, surface=self.screen)
+
+		self.player.inventory_sprites = inventory_sprites
+
+
+
+	def draw_smelting_interface(self):
+		highlight = None
+		inventory_sprites = []
+
+		full_screen = pygame.Rect((0,0), (WIDTH, HEIGHT))
+		self.draw_transparent(full_screen, (0,0,0,128))
+
+		width = 398
+		height = 198
+
+		inventory_rect = self.smelting_img.get_rect(center = (WIDTH*.5, HEIGHT*.5))
+		self.screen.blit(self.smelting_img, inventory_rect)
+
+		mouse_pos = pygame.mouse.get_pos()
+		# print(mouse_pos)
+
+		# Holding
+		if self.player.holding and self.player.holding.display_amount > 0:
+			slot = self.player.holding
+			img = slot.image
+			img_rect = img.get_rect(center=mouse_pos)
+			self.screen.blit(img, img_rect)
+
+			if slot.display_amount > 1:
+				write_text(self.font_20, slot.display_amount, centery=img_rect.centery+3, centerx=img_rect.centerx+3, surface=self.screen)
+
+		# Hotbar
+		box = pygame.Rect((156, 406), (33, 33))
+		for num in range(9):
+			box.x += 36
+			slot = self.player.inventory[0][num]
+			img = slot.image
+			img_rect = img.get_rect(center=box.center)
+			slot.change_coor(0, num)
+			slot.change_rect(img_rect)
+			slot.change_location('hotbar')
+			inventory_sprites.append(slot)
+
+			self.screen.blit(img, img_rect)
+
+			if slot.amount > 1:
+				write_text(self.font_20, slot.amount, centery=box.centery+3, centerx=box.centerx+3, surface=self.screen)
+
+			if (len(self.player.selected) > 1 and slot.xy in self.player.selected):
+				self.draw_transparent(box, (255,255,255,128))
+			elif img_rect.collidepoint(mouse_pos):
+				highlight = slot
+				self.draw_transparent(box, (255,255,255,128))
+
+		# Rest of the inventory
+		for row in range(1, 4):
+			box = pygame.Rect((155, 254), (33, 33))
+			box.y = 254+(36*row)
+
+			for num in range(9):
+				box.x += 36
+				slot = self.player.inventory[row][num]
+				img = slot.image
+				img_rect = img.get_rect(center=box.center)
+				slot.change_coor(row, num)
+				slot.change_rect(img_rect)
+				slot.change_location('inventory')
+				inventory_sprites.append(slot)
+				self.screen.blit(img, img_rect)
+
+				if slot.amount > 1:
+					write_text(self.font_20, slot.amount, centery=box.centery+3, centerx=box.centerx+3, surface=self.screen)
+
+				if (len(self.player.selected) > 1 and slot.xy in self.player.selected):
+					self.draw_transparent(box, (255,255,255,128))
+				elif img_rect.collidepoint(mouse_pos):
+					self.draw_transparent(box, (255,255,255,128))
+
+					highlight = slot
+
+
+		for slot, coor, name in [
+					(self.player.scene.input_slot, (304, 172), 'input'),
+					(self.player.scene.fuel_slot, (304, 244), 'fuel'),
+					(self.player.scene.output_slot, (424, 208), 'output')
+			]:
+			box = pygame.Rect(coor, (33, 33))
+			box.center = coor
+			slot.change_coor(0,0)
+			slot.change_rect(box)
+			slot.change_location(name)
+			inventory_sprites.append(slot)
+			self.screen.blit(slot.image, box)
+
+			if slot.amount > 1:
+				write_text(self.font_20, slot.amount, centery=box.centery+3, centerx=box.centerx+3, surface=self.screen)
+
+			if (len(self.player.selected) > 1 and slot.xy in self.player.selected):
+				self.draw_transparent(box, (255,255,255,128))
+			elif box.collidepoint(mouse_pos):
+				self.draw_transparent(box, (255,255,255,128))
+
+				highlight = slot
+
+
+		if self.player.scene.smelting_time:
+			percent = (time.time() - self.player.scene.started_smelting) / self.player.scene.smelting_time
+			smelting_progress_image = cut_image(self.fuel_progress_img, percent, down=True)
+			rect = smelting_progress_image.get_rect(midbottom=(inventory_rect.x+127, inventory_rect.y+99))
+			self.screen.blit(smelting_progress_image, rect)
 
 		self.player.inventory_sprites = inventory_sprites
